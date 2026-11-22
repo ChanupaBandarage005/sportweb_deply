@@ -138,6 +138,17 @@ if ($method === 'POST') {
     }
 
     $pdo = db();
+
+    $userId = to_id($user['id'] ?? null);
+    if ($userId === null) {
+        json_error('Your session user ID is missing. Please sign out and sign in again.', 401);
+    }
+    $uStmt = $pdo->prepare('SELECT id FROM users WHERE id = ? LIMIT 1');
+    $uStmt->execute([$userId]);
+    if (!$uStmt->fetch()) {
+        json_error('Logged-in account was not found in database. Please sign out and sign in again.', 401);
+    }
+
     $fStmt = $pdo->prepare('SELECT name FROM facilities WHERE LOWER(name) = LOWER(?) LIMIT 1');
     $fStmt->execute([$facility]);
     $matchedRow = $fStmt->fetch();
@@ -149,6 +160,14 @@ if ($method === 'POST') {
         if ($facilityTableCount > 0 && !in_array($facility, FACILITY_SLUG_MAP, true)) {
             json_error('Unknown facility selected.', 400);
         }
+        if ($facilityTableCount === 0) {
+            try {
+                $insFac = $pdo->prepare('INSERT IGNORE INTO facilities (name) VALUES (?)');
+                $insFac->execute([$facility]);
+            } catch (Throwable $ignored) {
+                // ignore if `facilities` schema differs
+            }
+        }
     }
 
     $startNorm = strlen($start) === 5 ? $start . ':00' : $start;
@@ -157,12 +176,19 @@ if ($method === 'POST') {
         json_error('end_time must be later than start_time.', 400);
     }
 
-    $stmt = $pdo->prepare(
-        "INSERT INTO bookings (facility, booked_by, sport, booking_date, start_time, end_time, status, notes)
-         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)"
-    );
-    $stmt->execute([$facility, $user['id'], $sport, $date, $startNorm, $endNorm, $notes]);
-    json_response(['success' => true, 'data' => find_booking((int) $pdo->lastInsertId())], 201);
+    try {
+        $stmt = $pdo->prepare(
+            "INSERT INTO bookings (facility, booked_by, sport, booking_date, start_time, end_time, status, notes)
+             VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)"
+        );
+        $stmt->execute([$facility, $userId, $sport, $date, $startNorm, $endNorm, $notes]);
+        json_response(['success' => true, 'data' => find_booking((int) $pdo->lastInsertId())], 201);
+    } catch (PDOException $e) {
+        if ((int) $e->getCode() === 23000 || str_contains($e->getMessage(), '1452')) {
+            json_error('Could not save booking due to a database reference mismatch (check user account or facility record).', 400);
+        }
+        throw $e;
+    }
 }
 
 /* ---------- DELETE: cancel ---------- */
