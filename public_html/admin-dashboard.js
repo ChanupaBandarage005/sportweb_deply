@@ -437,11 +437,16 @@ function bindEvents() {
       if (els.addStudentStatus) els.addStudentStatus.textContent = `${label} removed.`;
       await loadStudents();
     } catch (err) {
-      alert(err.message);
+      await loadStudents();
+      if (err?.name === 'AbortError' || String(err?.message || '').toLowerCase().includes('abort')) {
+        if (els.addStudentStatus) {
+          els.addStudentStatus.textContent = `${label} request finished (table refreshed).`;
+        }
+      } else {
+        alert(err.message);
+      }
       delBtn.disabled = false;
     }
-  });
-
   els.refreshStudents?.addEventListener('click', loadStudents);
   els.studentStatus?.addEventListener('change', loadStudents);
   els.studentSearch?.addEventListener('keydown', (e) => {
