@@ -89,14 +89,23 @@ const sportToFacility = {
   "chess": "chess"
 };
 
+function esc(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Training Schedule page
 const scheduleList = document.getElementById("scheduleList");
 if (scheduleList) {
   function renderSchedule(filter) {
     scheduleList.innerHTML = "";
     dayOrder
-      .filter(day => filter === "all" || day.toLowerCase() === filter)
-      .forEach(day => {
-        const sessions = trainingSessions.filter(s => s.day === day);
+      .filter((day) => filter === "all" || day.toLowerCase() === filter)
+      .forEach((day) => {
+        const sessions = trainingSessions.filter((s) => s.day === day);
         if (!sessions.length) return;
 
         const heading = document.createElement("h2");
@@ -104,46 +113,53 @@ if (scheduleList) {
         heading.textContent = day;
         scheduleList.appendChild(heading);
 
-        sessions.forEach(s => {
+        sessions.forEach((s) => {
           const facilityId = sportToFacility[s.club];
-          const bookLink = "book-facilities.html" + (facilityId ? "?facility=" + facilityId : "") + "#bookingSection";
+          const bookLink =
+            "book-facilities.html" + (facilityId ? "?facility=" + encodeURIComponent(facilityId) : "") + "#bookingSection";
           const card = document.createElement("div");
           card.className = "session-card";
           card.innerHTML = `
             <div class="session-info">
-              <h3>${s.sport}</h3>
-              <p>${s.time} &middot; ${s.venue}</p>
+              <h3>${esc(s.sport)}</h3>
+              <p>${esc(s.time)} &middot; ${esc(s.venue)}</p>
             </div>
-            <a class="btn-outline" href="${bookLink}">Book Now</a>
+            <a class="btn-outline" href="${esc(bookLink)}">Book Now</a>
           `;
           scheduleList.appendChild(card);
         });
       });
   }
-  document.querySelectorAll(".chip").forEach(chip => {
+
+  document.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => {
-      document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+      document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
       chip.classList.add("active");
-      renderSchedule(chip.dataset.filter);
+      renderSchedule(chip.dataset.filter || "all");
     });
   });
+
   renderSchedule("all");
 }
 
+// Book Facilities page
 const facilitiesGrid = document.getElementById("facilitiesGrid");
 const facilitySelect = document.getElementById("facilitySelect");
 const bookingForm = document.getElementById("bookingForm");
 const bookingsBody = document.getElementById("bookingsBody");
 const noBookings = document.getElementById("noBookings");
 
-if (facilitiesGrid) {
+if (facilitiesGrid && facilitySelect && bookingForm && bookingsBody && noBookings) {
   const SESSION_STORAGE_KEY = "sportshub_user";
+  const LOCAL_BOOKINGS_KEY = "myBookings";
   let resolvedApiBase = null;
 
   function getActiveUser() {
     try {
       const raw = sessionStorage.getItem(SESSION_STORAGE_KEY) || localStorage.getItem(SESSION_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
     } catch {
       return null;
     }
@@ -158,7 +174,8 @@ if (facilitiesGrid) {
           credentials: "include",
           headers: { Accept: "application/json" },
         });
-        JSON.parse(await res.text());
+        const text = await res.text();
+        JSON.parse(text);
         resolvedApiBase = candidate;
         return resolvedApiBase;
       } catch {
@@ -185,27 +202,31 @@ if (facilitiesGrid) {
       ...options,
       headers,
     });
+
     const text = await res.text();
     let data = null;
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
-      throw new Error(`Invalid response from ${base}/${path} (HTTP ${res.status})`);
+      const snippet = text.trim().replace(/\s+/g, " ").slice(0, 140) || "(empty response)";
+      console.error(`Non-JSON response from ${base}/${path} (HTTP ${res.status}):`, text);
+      throw new Error(`HTTP ${res.status} from ${base}/${path}: ${snippet}`);
     }
+
     if (!res.ok || data?.success === false) {
       throw new Error(data?.error || data?.message || `Booking request failed (${res.status})`);
     }
     return data;
   }
 
-  facilities.forEach(f => {
+  facilities.forEach((f) => {
     const card = document.createElement("div");
     card.className = "facility-card";
     card.innerHTML = `
-      ${f.img ? `<img class="facility-img" src="${f.img}" alt="${f.name}">` : `<div class="icon">${f.icon}</div>`}
-      <h3>${f.name}</h3>
-      <p>${f.desc}</p>
-      <button type="button" class="btn-outline" data-id="${f.id}">Book Now</button>
+      ${f.img ? `<img class="facility-img" src="${esc(f.img)}" alt="${esc(f.name)}">` : ""}
+      <h3>${esc(f.name)}</h3>
+      <p>${esc(f.desc)}</p>
+      <button type="button" class="btn-outline" data-id="${esc(f.id)}">Book Now</button>
     `;
     facilitiesGrid.appendChild(card);
 
@@ -216,20 +237,18 @@ if (facilitiesGrid) {
   });
 
   const preselect = new URLSearchParams(window.location.search).get("facility");
-  if (preselect && facilities.some(f => f.id === preselect)) {
+  if (preselect && facilities.some((f) => f.id === preselect)) {
     facilitySelect.value = preselect;
     bookingForm.scrollIntoView({ behavior: "smooth" });
   }
 
-  facilitiesGrid.addEventListener("click", e => {
-    const btn = e.target.closest("[data-id]");
-    if (btn) {
-      facilitySelect.value = btn.dataset.id;
-      bookingForm.scrollIntoView({ behavior: "smooth" });
-    }
+  facilitiesGrid.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-id]");
+    if (!btn) return;
+    facilitySelect.value = btn.dataset.id;
+    bookingForm.scrollIntoView({ behavior: "smooth" });
   });
 
-  // Ensure date and time inputs are clickable anywhere on the input box and open the native picker
   const bookingDate = document.getElementById("bookingDate");
   const startTimeInput = document.getElementById("startTime");
   const endTimeInput = document.getElementById("endTime");
@@ -238,7 +257,7 @@ if (facilitiesGrid) {
   const todayStr = [
     today.getFullYear(),
     String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0")
+    String(today.getDate()).padStart(2, "0"),
   ].join("-");
 
   if (bookingDate) {
@@ -259,7 +278,7 @@ if (facilitiesGrid) {
         try {
           input.showPicker();
         } catch {
-          // ignore if browser requires direct user gesture on icon
+          // ignore if browser blocks programmatic showPicker
         }
       }
     });
@@ -269,12 +288,16 @@ if (facilitiesGrid) {
 
   function normalizeBookingRow(row) {
     const facilityId = row.facility_id || row.facility || "";
-    const matchedFac = facilities.find(f => f.id === facilityId || f.name.toLowerCase() === String(row.facility_name || row.facility || "").toLowerCase());
+    const matchedFac = facilities.find(
+      (f) =>
+        f.id === facilityId ||
+        f.name.toLowerCase() === String(row.facility_name || row.facility || "").toLowerCase()
+    );
     const dateVal = row.booking_date || row.date || (row.start_time ? String(row.start_time).slice(0, 10) : "");
     const startVal = row.start_time || row.start || "";
     const endVal = row.end_time || row.end || "";
     return {
-      facility: matchedFac ? matchedFac.name : (row.facility_name || facilityId || "Facility"),
+      facility: matchedFac ? matchedFac.name : row.facility_name || facilityId || "Facility",
       date: dateVal,
       time: [startVal, endVal].filter(Boolean).join(" - "),
       status: String(row.status || "pending").toLowerCase(),
@@ -284,7 +307,7 @@ if (facilitiesGrid) {
   function renderBookings() {
     bookingsBody.innerHTML = "";
     noBookings.style.display = bookings.length ? "none" : "block";
-    bookings.forEach(b => {
+    bookings.forEach((b) => {
       const statusClass = ["confirmed", "approved"].includes(b.status)
         ? "status-confirmed"
         : ["cancelled", "rejected"].includes(b.status)
@@ -292,13 +315,22 @@ if (facilitiesGrid) {
           : "status-pending";
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${b.facility}</td>
-        <td>${b.date}</td>
-        <td>${b.time}</td>
-        <td><span class="status ${statusClass}">${b.status}</span></td>
+        <td>${esc(b.facility)}</td>
+        <td>${esc(b.date)}</td>
+        <td>${esc(b.time)}</td>
+        <td><span class="status ${esc(statusClass)}">${esc(b.status)}</span></td>
       `;
       bookingsBody.appendChild(row);
     });
+  }
+
+  function readLocalBookings() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || "[]");
+      return Array.isArray(saved) ? saved.map(normalizeBookingRow) : [];
+    } catch {
+      return [];
+    }
   }
 
   async function fetchBookingsFromDb() {
@@ -309,33 +341,28 @@ if (facilitiesGrid) {
       renderBookings();
     } catch (err) {
       console.error("Failed to fetch bookings from DB:", err);
-      try {
-        const saved = JSON.parse(localStorage.getItem("myBookings") || "[]");
-        bookings = Array.isArray(saved) ? saved.map(normalizeBookingRow) : [];
-      } catch {
-        bookings = [];
-      }
+      bookings = readLocalBookings();
       renderBookings();
     }
   }
 
-  bookingForm.addEventListener("submit", async e => {
+  bookingForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const facilityId = facilitySelect.value;
-    const facObj = facilities.find(f => f.id === facilityId);
-    const date = bookingDate.value;
-    const start = startTimeInput.value;
-    const end = endTimeInput.value;
+    const facObj = facilities.find((f) => f.id === facilityId);
+    const date = bookingDate ? bookingDate.value : "";
+    const start = startTimeInput ? startTimeInput.value : "";
+    const end = endTimeInput ? endTimeInput.value : "";
 
     if (!date) {
       alert("Please select a booking date.");
       return;
     }
-    if (bookingDate.min && date < bookingDate.min) {
+    if (bookingDate?.min && date < bookingDate.min) {
       alert("Please choose today or a future date.");
       return;
     }
-    if (end <= start) {
+    if (!start || !end || end <= start) {
       alert("End time must be after start time.");
       return;
     }
