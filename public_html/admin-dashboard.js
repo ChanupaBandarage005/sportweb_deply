@@ -502,3 +502,105 @@ function bindEvents() {
     btn.disabled = true;
     try {
       await api('clubs.php', {
+        method: 'PUT',
+        body: JSON.stringify({ id: Number(btn.dataset.reqId), status: btn.dataset.status }),
+      });
+      await loadClubRequests();
+    } catch (err) {
+      alert(err.message);
+      btn.disabled = false;
+    }
+  });
+
+  els.createClubForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    els.createClubStatus.textContent = 'Saving club...';
+    try {
+      await api('clubs.php', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: els.clubName.value.trim(),
+          sport: els.clubSport.value.trim(),
+          president: els.clubPresident.value.trim(),
+          description: els.clubDesc.value.trim(),
+        }),
+      });
+      els.createClubForm.reset();
+      els.createClubStatus.textContent = 'Club saved to database.';
+    } catch (err) {
+      els.createClubStatus.textContent = err.message;
+    }
+  });
+
+  els.announcementForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    els.announcementStatus.textContent = 'Publishing...';
+    try {
+      await api('announcements.php', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: els.announcementTitle.value.trim(),
+          content: els.announcementText.value.trim(),
+        }),
+      });
+      els.announcementForm.reset();
+      els.announcementStatus.textContent = 'Announcement published.';
+      await loadAnnouncements();
+    } catch (err) {
+      els.announcementStatus.textContent = err.message;
+    }
+  });
+
+  els.addInventoryForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    els.inventoryStatus.textContent = 'Adding item...';
+    try {
+      await api('inventory.php', {
+        method: 'POST',
+        body: JSON.stringify({
+          item_name: els.invItemName.value.trim(),
+          total_stock: Number(els.invTotalStock.value),
+        }),
+      });
+      els.addInventoryForm.reset();
+      els.inventoryStatus.textContent = 'Inventory item added.';
+      await loadInventory();
+    } catch (err) {
+      els.inventoryStatus.textContent = err.message;
+    }
+  });
+
+  els.inventoryContainer?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.inv-save');
+    if (!btn) return;
+    const row = btn.closest('.inv-row');
+    const id = Number(row?.dataset.invId);
+    const totalStock = Number(row?.querySelector('.inv-total')?.value);
+    const issuedCount = Number(row?.querySelector('.inv-issued')?.value);
+    btn.disabled = true;
+    try {
+      await api('inventory.php', {
+        method: 'PUT',
+        body: JSON.stringify({ id, total_stock: totalStock, issued_count: issuedCount }),
+      });
+      els.inventoryStatus.textContent = 'Inventory updated.';
+      await loadInventory();
+    } catch (err) {
+      els.inventoryStatus.textContent = err.message;
+      btn.disabled = false;
+    }
+  });
+}
+
+(async function init() {
+  bindEvents();
+  const user = await ensureAdminSession();
+  if (!user) return;
+  await Promise.allSettled([
+    loadStudents(),
+    loadBookings(),
+    loadClubRequests(),
+    loadAnnouncements(),
+    loadInventory(),
+  ]);
+})();
