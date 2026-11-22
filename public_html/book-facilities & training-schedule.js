@@ -222,10 +222,47 @@ if (facilitiesGrid) {
   }
 
   facilitiesGrid.addEventListener("click", e => {
-    if (e.target.dataset.id) {
-      facilitySelect.value = e.target.dataset.id;
+    const btn = e.target.closest("[data-id]");
+    if (btn) {
+      facilitySelect.value = btn.dataset.id;
       bookingForm.scrollIntoView({ behavior: "smooth" });
     }
+  });
+
+  // Ensure date and time inputs are clickable anywhere on the input box and open the native picker
+  const bookingDate = document.getElementById("bookingDate");
+  const startTimeInput = document.getElementById("startTime");
+  const endTimeInput = document.getElementById("endTime");
+
+  const today = new Date();
+  const todayStr = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0")
+  ].join("-");
+
+  if (bookingDate) {
+    bookingDate.min = todayStr;
+    if (!bookingDate.value) {
+      bookingDate.value = todayStr;
+    }
+  }
+
+  [bookingDate, startTimeInput, endTimeInput].forEach((input) => {
+    if (!input) return;
+    input.style.pointerEvents = "auto";
+    input.style.position = "relative";
+    input.style.zIndex = "2";
+    input.style.cursor = "pointer";
+    input.addEventListener("click", () => {
+      if (typeof input.showPicker === "function") {
+        try {
+          input.showPicker();
+        } catch {
+          // ignore if browser requires direct user gesture on icon
+        }
+      }
+    });
   });
 
   let bookings = [];
@@ -282,23 +319,19 @@ if (facilitiesGrid) {
     }
   }
 
-  const bookingDate = document.getElementById("bookingDate");
-  const today = new Date();
-  bookingDate.min = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0")
-  ].join("-");
-
   bookingForm.addEventListener("submit", async e => {
     e.preventDefault();
     const facilityId = facilitySelect.value;
     const facObj = facilities.find(f => f.id === facilityId);
-    const date = document.getElementById("bookingDate").value;
-    const start = document.getElementById("startTime").value;
-    const end = document.getElementById("endTime").value;
+    const date = bookingDate.value;
+    const start = startTimeInput.value;
+    const end = endTimeInput.value;
 
-    if (date < bookingDate.min) {
+    if (!date) {
+      alert("Please select a booking date.");
+      return;
+    }
+    if (bookingDate.min && date < bookingDate.min) {
       alert("Please choose today or a future date.");
       return;
     }
@@ -326,6 +359,7 @@ if (facilitiesGrid) {
         }),
       });
       bookingForm.reset();
+      if (bookingDate) bookingDate.value = todayStr;
       await fetchBookingsFromDb();
       alert("Booking request submitted.");
     } catch (err) {
