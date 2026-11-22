@@ -70,7 +70,6 @@ const facilities = [
   { id: "chess", name: "Chess", img: "assets/pictures/Chess.jpg", desc: "FOC - L - 104" }
 ];
 
-// Links each sport in the schedule to its container on the Book Facilities page
 const sportToFacility = {
   "athletics": "athletics-track",
   "cricket": "cricket",
@@ -90,7 +89,6 @@ const sportToFacility = {
   "chess": "chess"
 };
 
-//Training Schedule page
 const scheduleList = document.getElementById("scheduleList");
 if (scheduleList) {
   function renderSchedule(filter) {
@@ -132,7 +130,6 @@ if (scheduleList) {
   renderSchedule("all");
 }
 
-//Book Facilities page
 const facilitiesGrid = document.getElementById("facilitiesGrid");
 const facilitySelect = document.getElementById("facilitySelect");
 const bookingForm = document.getElementById("bookingForm");
@@ -140,6 +137,67 @@ const bookingsBody = document.getElementById("bookingsBody");
 const noBookings = document.getElementById("noBookings");
 
 if (facilitiesGrid) {
+  const SESSION_STORAGE_KEY = "sportshub_user";
+  let resolvedApiBase = null;
+
+  function getActiveUser() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_STORAGE_KEY) || localStorage.getItem(SESSION_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function resolveBookingApiBase() {
+    if (resolvedApiBase) return resolvedApiBase;
+    for (const candidate of ["backend/api", "api"]) {
+      try {
+        const res = await fetch(`${candidate}/auth.php`, {
+          method: "GET",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        });
+        JSON.parse(await res.text());
+        resolvedApiBase = candidate;
+        return resolvedApiBase;
+      } catch {
+        // try next candidate
+      }
+    }
+    resolvedApiBase = "backend/api";
+    return resolvedApiBase;
+  }
+
+  async function bookingApi(path, options = {}) {
+    const base = await resolveBookingApiBase();
+    const user = getActiveUser();
+    const headers = {
+      Accept: "application/json",
+      ...(user?.id ? { "X-User-Id": String(user.id) } : {}),
+      ...(user?.role ? { "X-User-Role": String(user.role) } : {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
+    };
+
+    const res = await fetch(`${base}/${path}`, {
+      credentials: "include",
+      ...options,
+      headers,
+    });
+    const text = await res.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      throw new Error(`Invalid response from ${base}/${path} (HTTP ${res.status})`);
+    }
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.error || data?.message || `Booking request failed (${res.status})`);
+    }
+    return data;
+  }
+
   facilities.forEach(f => {
     const card = document.createElement("div");
     card.className = "facility-card";
@@ -147,7 +205,7 @@ if (facilitiesGrid) {
       ${f.img ? `<img class="facility-img" src="${f.img}" alt="${f.name}">` : `<div class="icon">${f.icon}</div>`}
       <h3>${f.name}</h3>
       <p>${f.desc}</p>
-      <button class="btn-outline" data-id="${f.id}">Book Now</button>
+      <button type="button" class="btn-outline" data-id="${f.id}">Book Now</button>
     `;
     facilitiesGrid.appendChild(card);
 
@@ -157,7 +215,6 @@ if (facilitiesGrid) {
     facilitySelect.appendChild(opt);
   });
 
-  // If we arrived from a Book Now button on the schedule page, preselect that facility
   const preselect = new URLSearchParams(window.location.search).get("facility");
   if (preselect && facilities.some(f => f.id === preselect)) {
     facilitySelect.value = preselect;
@@ -171,51 +228,59 @@ if (facilitiesGrid) {
     }
   });
 
-  let bookings;
-  try {
-    const savedBookings = JSON.parse(localStorage.getItem("myBookings") || "[]");
-    bookings = Array.isArray(savedBookings) ? savedBookings : [];
-  } catch (error) {
-    console.error("Could not read saved booking requests.", error);
-    bookings = [];
+  let bookings = [];
+
+  function normalizeBookingRow(row) {
+    const facilityId = row.facility_id || row.facility || "";
+    const matchedFac = facilities.find(f => f.id === facilityId || f.name.toLowerCase() === String(row.facility_name || row.facility || "").toLowerCase());
+    const dateVal = row.booking_date || row.date || (row.start_time ? String(row.start_time).slice(0, 10) : "");
+    const startVal = row.start_time || row.start || "";
+    const endVal = row.end_time || row.end || "";
+    return {
+      facility: matchedFac ? matchedFac.name : (row.facility_name || facilityId || "Facility"),
+      date: dateVal,
+      time: [startVal, endVal].filter(Boolean).join(" - "),
+      status: String(row.status || "pending").toLowerCase(),
+    };
   }
 
   function renderBookings() {
     bookingsBody.innerHTML = "";
     noBookings.style.display = bookings.length ? "none" : "block";
     bookings.forEach(b => {
-      const facName = facilities.find(f => f.id === b.facility)?.name || b.facility;
+      const statusClass = ["confirmed", "approved"].includes(b.status)
+        ? "status-confirmed"
+        : ["cancelled", "rejected"].includes(b.status)
+          ? "status-cancelled"
+          : "status-pending";
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${facName}</td>
+        <td>${b.facility}</td>
         <td>${b.date}</td>
-        <td>${b.start} - ${b.end}</td>
-        <td><span class="status status-${b.status}">${b.status}</span></td>
+        <td>${b.time}</td>
+        <td><span class="status ${statusClass}">${b.status}</span></td>
       `;
       bookingsBody.appendChild(row);
     });
   }
 
-  bookingForm.addEventListener("submit", e => {
-    e.preventDefault();
-    const facility = facilitySelect.value;
-    const date = document.getElementById("bookingDate").value;
-    const start = document.getElementById("startTime").value;
-    const end = document.getElementById("endTime").value;
-    if (date < bookingDate.min) { alert("Please choose today or a future date."); return; }
-    if (end <= start) { alert("End time must be after start time."); return; }
-    bookings.push({ facility, date, start, end, status: "pending" });
+  async function fetchBookingsFromDb() {
     try {
-      localStorage.setItem("myBookings", JSON.stringify(bookings));
-    } catch (error) {
-      bookings.pop();
-      console.error("Could not save the booking request.", error);
-      alert("Your booking request could not be saved in this browser.");
-      return;
+      const res = await bookingApi("bookings.php", { method: "GET" });
+      const list = Array.isArray(res?.data) ? res.data : [];
+      bookings = list.map(normalizeBookingRow);
+      renderBookings();
+    } catch (err) {
+      console.error("Failed to fetch bookings from DB:", err);
+      try {
+        const saved = JSON.parse(localStorage.getItem("myBookings") || "[]");
+        bookings = Array.isArray(saved) ? saved.map(normalizeBookingRow) : [];
+      } catch {
+        bookings = [];
+      }
+      renderBookings();
     }
-    renderBookings();
-    bookingForm.reset();
-  });
+  }
 
   const bookingDate = document.getElementById("bookingDate");
   const today = new Date();
@@ -224,5 +289,52 @@ if (facilitiesGrid) {
     String(today.getMonth() + 1).padStart(2, "0"),
     String(today.getDate()).padStart(2, "0")
   ].join("-");
-  renderBookings();
+
+  bookingForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    const facilityId = facilitySelect.value;
+    const facObj = facilities.find(f => f.id === facilityId);
+    const date = document.getElementById("bookingDate").value;
+    const start = document.getElementById("startTime").value;
+    const end = document.getElementById("endTime").value;
+
+    if (date < bookingDate.min) {
+      alert("Please choose today or a future date.");
+      return;
+    }
+    if (end <= start) {
+      alert("End time must be after start time.");
+      return;
+    }
+
+    const submitBtn = bookingForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      await bookingApi("bookings.php", {
+        method: "POST",
+        body: JSON.stringify({
+          facility: facilityId,
+          facility_id: facilityId,
+          facility_name: facObj ? facObj.name : facilityId,
+          booking_date: date,
+          date,
+          start_time: start,
+          end_time: end,
+          start,
+          end,
+        }),
+      });
+      bookingForm.reset();
+      await fetchBookingsFromDb();
+      alert("Booking request submitted.");
+    } catch (err) {
+      console.error("Booking submit error:", err);
+      alert(err.message || "Could not submit booking request to database.");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+
+  fetchBookingsFromDb();
 }
