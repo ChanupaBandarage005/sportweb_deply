@@ -1,240 +1,145 @@
-<!DOCTYPE html>
-<html dir="ltr" lang="en-US" data-theme="light" class="js">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="light">
-  <title>Sports Clubs | NSBM SportsHub</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sports Clubs · NSBM SportsHub</title>
   <meta name="description" content="Explore NSBM Sports Clubs, check schedules and upcoming fixtures, and register for clubs through NSBM SportsHub.">
-
-  <link rel="preconnect" href="https://d3c539pel8wzjz.cloudfront.net/" crossorigin="">
-  <link rel="stylesheet" href="./clubs.css">
+  <link rel="stylesheet" href="student-dashboard.css">
+  <link rel="stylesheet" href="clubs.css">
 </head>
-<body class="nsbm-ui nsbm-about-page nsbm-about-page-sports sportshub-page">
-  <div id="page" class="site">
-    <a class="skip-link screen-reader-text" href="#content">Skip to content</a>
+<body data-require="student">
+  <div class="app-shell">
+    <!-- Sidebar (Exact match to student-dashboard.html) -->
+    <aside class="sidebar">
+      <a href="student-dashboard.html" class="brand" aria-label="NSBM SportsHub" style="text-decoration:none;">
+        <svg class="brand-mark" viewBox="34 14 407 444" width="32" height="32" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="brand-blue" x1="40" y1="130" x2="360" y2="360" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#2463a1"/>
+              <stop offset="1" stop-color="#18558e"/>
+            </linearGradient>
+            <linearGradient id="brand-blue-top" x1="240" y1="20" x2="414" y2="133" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#205e9b"/>
+              <stop offset="1" stop-color="#245e96"/>
+            </linearGradient>
+            <linearGradient id="brand-green" x1="239" y1="180" x2="435" y2="280" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#39b143"/>
+              <stop offset="1" stop-color="#32a942"/>
+            </linearGradient>
+            <linearGradient id="brand-lime" x1="40" y1="200" x2="286" y2="380" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#8fc640"/>
+              <stop offset="1" stop-color="#88c440"/>
+            </linearGradient>
+          </defs>
+          <path fill="url(#brand-blue-top)" d="M240 18C294 20 351 30 396 50C405 77 411 106 414 133L239 145Z"/>
+          <path fill="url(#brand-blue)" d="M40 130C111 133 161 101 201 105C217 118 231 134 239 145L239 345C228 335 217 329 205 332C172 267 111 219 41 189Z"/>
+          <path fill="url(#brand-lime)" d="M40 46C103 51 165 74 201 105C161 102 143 131 40 131Z"/>
+          <path fill="url(#brand-blue)" d="M286 331L379 355C350 396 295 429 236 454C259 418 277 376 286 331Z"/>
+          <path fill="url(#brand-lime)" d="M205 332C217 329 229 335 239 345C253 333 269 329 286 332C278 380 257 428 236 454C231 410 221 367 205 332Z"/>
+          <path fill="url(#brand-green)" d="M239 116C278 86 309 125 414 132L435 133L435 363C375 367 327 340 286 333C268 329 251 332 239 345Z"/>
+          <path fill="url(#brand-lime)" d="M40 214C125 251 205 321 207 444C107 421 50 302 40 214Z"/>
+        </svg>
+        <span>NSBM<span class="brand-sub">SPORTSHUB</span></span>
+      </a>
+      <nav class="nav-list">
+        <a href="student-dashboard.html">Student Portal</a>
+        <a href="book-facilities.html">Book Facilities</a>
+        <a href="clubs.html" class="active" aria-current="page">Clubs</a>
+        <a href="training-schedule.html">Training Schedule</a>
+        <a href="tournaments.html">Tournaments &amp; Results</a>
+        <a href="index.html" id="logout-btn">Sign out</a>
+      </nav>
+    </aside>
 
-    <header id="masthead" class="site-header">
-      <div class="nsbm-chrome-head" style="--mm-bar:#ffffff;--mm-on-bar:#002147;--mm-top:#00172f;--mm-on-top:#ffffff;--mm-top-accent:#70d8a0;">
-        <div class="utility">
-          <div class="container">
-            <ul class="social" aria-label="NSBM social media">
-              <li><a href="https://www.facebook.com/nsbm.lk" rel="noopener" aria-label="NSBM on Facebook">FB</a></li>
-              <li><a href="https://www.instagram.com/nsbmgreenuniversity/" rel="noopener" aria-label="NSBM on Instagram">IG</a></li>
-              <li><a href="https://www.youtube.com/channel/UCHsodhRyiuri2jD7H7nfsRg" rel="noopener" aria-label="NSBM on YouTube">YT</a></li>
-              <li><a href="https://www.linkedin.com/company/nsbm-green-university-town/" rel="noopener" aria-label="NSBM on LinkedIn">IN</a></li>
-            </ul>
-            <ul class="quick" aria-label="Quick links">
-              <li><a href="tel:+94115445000">+94 11 544 5000</a></li>
-              <li><a href="https://students.nsbm.ac.lk/" rel="noopener">Students</a></li>
-              <li><a href="https://www.nsbm.ac.lk/careers">Careers</a></li>
-              <li><a href="https://www.nsbm.ac.lk/library">Library</a></li>
-            </ul>
-          </div>
+    <!-- Workspace -->
+    <main id="main" class="workspace ab ab--clubs ab-js" data-api-base="/api">
+      <header class="topbar topbar--flex">
+        <div>
+          <span class="eyebrow">CLUBS &amp; SOCIETIES</span>
+          <h1 id="ab-title">Sports Clubs</h1>
         </div>
+        <div class="topbar-actions">
+          <span class="badge badge-success" id="api-sync-status" aria-live="polite">Syncing with SportsHub API...</span>
+          <button type="button" class="btn btn-primary" id="open-join-modal-btn" style="margin-top:0;">Join a Club</button>
+        </div>
+      </header>
 
-        <div class="site-header-bar">
-          <div class="container">
-            <div class="glass-bar">
-              <a class="brand" href="./index.html" rel="home">
-                <img src="https://d3c539pel8wzjz.cloudfront.net/wp-content/uploads/2022/12/logo_nsbm.png" alt="NSBM, home" width="131" height="60">
-              </a>
-
-              <nav class="main-nav" aria-label="Main">
-                <ul>
-                  <li class="nav-item"><a class="nav-link" href="./index.html">SportsHub Home</a></li>
-                  <li class="nav-item is-current"><a class="nav-link" href="./clubs.html" aria-current="page">Sports Clubs</a></li>
-                  <li class="nav-item"><a class="nav-link" href="./facilities.html">Facilities</a></li>
-                  <li class="nav-item"><a class="nav-link" href="./events.html">Events &amp; Fixtures</a></li>
-                  <li class="nav-item"><a class="nav-link" href="./announcements.html">Announcements</a></li>
-                </ul>
-              </nav>
-
-              <div class="header-actions">
-                <button type="button" class="btn btn--small" id="open-join-modal-btn">Join a Club</button>
-              </div>
+      <div class="content">
+        <!-- Directory & Filters Card -->
+        <section class="card" aria-labelledby="ab-clubs-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow"><span id="directory-club-count">11</span> CLUBS TO JOIN</span>
+              <h2 id="ab-clubs-title">University Sports Directory</h2>
+              <p class="muted">Explore active squads, check training schedules, and submit trial or membership requests.</p>
             </div>
           </div>
-        </div>
+
+          <div class="sh-toolbar" role="region" aria-label="Filter sports clubs">
+            <div class="sh-search-wrap">
+              <label for="club-search-input" class="sr-only">Search sports clubs</label>
+              <input
+                type="search"
+                id="club-search-input"
+                class="sh-input"
+                placeholder="Search by sport, venue, or captain..."
+                autocomplete="off"
+              >
+            </div>
+
+            <div class="sh-filters" role="group" aria-label="Category filter">
+              <button type="button" class="sh-chip is-active" data-category="all">All Sports</button>
+              <button type="button" class="sh-chip" data-category="field">Field &amp; Court</button>
+              <button type="button" class="sh-chip" data-category="indoor">Indoor &amp; Mind</button>
+              <button type="button" class="sh-chip" data-category="combat-aquatic">Combat &amp; Aquatics</button>
+            </div>
+          </div>
+
+          <!-- Club Cards Grid (Populated via clubs.js) -->
+          <ul class="ab-clubgrid" id="clubs-grid" data-count="11" aria-busy="true"></ul>
+
+          <!-- Empty State -->
+          <div class="sh-empty" id="clubs-empty" hidden>
+            <p class="muted">No sports clubs match your current filter.</p>
+            <button type="button" class="btn btn-ghost" id="reset-filters-btn">Reset filters</button>
+          </div>
+        </section>
+
+        <!-- Upcoming Fixtures Card -->
+        <section class="card" style="margin-top: 24px;" aria-labelledby="fixtures-heading">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">LIVE SCHEDULE</span>
+              <h2 id="fixtures-heading">Upcoming Trials &amp; Fixtures</h2>
+              <p class="muted">Inter-faculty trials, friendly matches, and upcoming tournament dates.</p>
+            </div>
+            <button type="button" class="btn btn-ghost" id="refresh-fixtures-btn" style="margin-top:0;">Refresh Fixtures</button>
+          </div>
+
+          <div class="feed-list" id="upcoming-fixtures-list">
+            <div class="feed-item">
+              <strong>Loading upcoming fixtures...</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- Bottom Action Banner -->
+        <section class="card cta-banner" style="margin-top: 24px;" aria-labelledby="foot-cta-title">
+          <div>
+            <span class="eyebrow" style="color: var(--lime);">GET INVOLVED</span>
+            <h2 id="foot-cta-title" style="color: #fff;">Represent NSBM on the pitch, court, and mat</h2>
+            <p style="color: #a7b6c9; font-size: 12px; margin-bottom: 0;">
+              Submit your membership or trial request directly to your chosen sports club through NSBM SportsHub.
+            </p>
+          </div>
+          <div class="cta-actions">
+            <button type="button" class="btn btn-primary" id="cta-join-club-btn" style="margin-top:0;">Register for a Club</button>
+            <a class="btn btn-ghost-dark" href="book-facilities.html" style="margin-top:0;">View Sports Facilities</a>
+          </div>
+        </section>
       </div>
-    </header>
-
-    <div id="content" class="site-content">
-      <main id="main" class="ab ab--clubs ab-js" data-api-base="/api">
-        <!-- Hero + Photo Mosaic (Matches NSBM Sports Clubs layout) -->
-        <section class="ab-hero" aria-labelledby="ab-title">
-          <div class="ab-hero__fx" aria-hidden="true"><span></span><span></span></div>
-          <div class="ab-wrap ab-hero__grid">
-            <div class="ab-hero__copy">
-              <nav class="ab-crumbs" aria-label="Breadcrumb">
-                <ol>
-                  <li><a href="./index.html">Home</a></li>
-                  <li>Clubs &amp; societies</li>
-                  <li aria-current="page">Sports Clubs</li>
-                </ol>
-              </nav>
-              <p class="ab-kicker">Clubs &amp; societies</p>
-              <h1 id="ab-title">Sports <span>Clubs</span></h1>
-              <p class="ab-hero__lead">
-                Sports Clubs serve as an integral aspect of the university experience at NSBM. Train, compete in inter-faculty and inter-university fixtures, book facilities, and join active squads across campus.
-              </p>
-            </div>
-
-            <div class="ab-hero__aside">
-              <div class="ab-mosaic ab-mosaic--photos" data-count="5">
-                <span class="ab-mosaic__item" style="--i:0"><img fetchpriority="high" src="https://d3c539pel8wzjz.cloudfront.net/wp-content/uploads/2023/clubs/sports/4-768x512.webp" alt="NSBM Athletics" width="768" height="512" decoding="async"></span>
-                <span class="ab-mosaic__item" style="--i:1"><img src="https://d3c539pel8wzjz.cloudfront.net/wp-content/uploads/2023/clubs/sports/badminton-club-768x215.webp" alt="NSBM Badminton" width="768" height="215" decoding="async"></span>
-                <span class="ab-mosaic__item" style="--i:2"><img src="https://d3c539pel8wzjz.cloudfront.net/wp-content/uploads/2023/07/chess-club-768x512.jpg" alt="NSBM Chess" width="768" height="512" decoding="async"></span>
-                <span class="ab-mosaic__item" style="--i:3"><img src="https://d3c539pel8wzjz.cloudfront.net/wp-content/uploads/2023/08/cricket-768x214.jpg" alt="NSBM Cricket" width="768" height="214" decoding="async"></span>
-                <span class="ab-mosaic__item" style="--i:4"><img src="https://d3c539pel8wzjz.cloudfront.net/wp-content/uploads/2023/clubs/sports/taekwondo7-768x626.webp" alt="NSBM Martial Arts" width="768" height="626" decoding="async"></span>
-                <span class="ab-mosaic__count"><strong id="hero-club-count">11</strong> clubs</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Subnav Strip -->
-        <nav class="ab-subnav" aria-label="Clubs &amp; societies">
-          <div class="ab-wrap">
-            <ul>
-              <li><a href="./index.html">SportsHub overview</a></li>
-              <li><a href="./clubs.html" aria-current="page">Sports clubs</a></li>
-              <li><a href="./facilities.html">Training venues</a></li>
-              <li><a href="./events.html">Tournaments</a></li>
-              <li><a href="./announcements.html">Notices</a></li>
-            </ul>
-          </div>
-        </nav>
-
-        <!-- Clubs Directory + Live Controls -->
-        <section class="ab-sec ab-clubs" aria-labelledby="ab-clubs-title">
-          <div class="ab-wrap">
-            <div class="ab-clubs__head">
-              <div class="ab-prose ab-rv is-in">
-                <p>
-                  Our Sports Clubs build physical conditioning, discipline, leadership, and lifelong teamwork while connecting students with campus training sessions, trials, and tournaments.
-                </p>
-              </div>
-              <div class="ab-rv is-in" style="--i:1">
-                <p class="ab-kicker ab-kicker--dark"><span id="directory-club-count">11</span> clubs to join</p>
-                <h2 id="ab-clubs-title">Take the right pick for you and make the most out of your university <span>experience</span>!</h2>
-              </div>
-            </div>
-
-            <!-- Filter & Search Bar -->
-            <div class="sh-toolbar" role="region" aria-label="Filter sports clubs">
-              <div class="sh-search-wrap">
-                <label for="club-search-input" class="screen-reader-text">Search sports clubs</label>
-                <input
-                  type="search"
-                  id="club-search-input"
-                  class="sh-input"
-                  placeholder="Search by sport, venue, or captain..."
-                  autocomplete="off"
-                >
-              </div>
-
-              <div class="sh-filters" role="group" aria-label="Category filter">
-                <button type="button" class="sh-chip is-active" data-category="all">All Sports</button>
-                <button type="button" class="sh-chip" data-category="field">Field &amp; Court</button>
-                <button type="button" class="sh-chip" data-category="indoor">Indoor &amp; Mind</button>
-                <button type="button" class="sh-chip" data-category="combat-aquatic">Combat &amp; Aquatics</button>
-              </div>
-
-              <div class="sh-status-pill" id="api-sync-status" aria-live="polite">
-                Syncing with SportsHub API...
-              </div>
-            </div>
-
-            <!-- Club Cards Grid (Populated via clubs.js from /api/clubs) -->
-            <ul class="ab-clubgrid" id="clubs-grid" data-count="11" aria-busy="true"></ul>
-
-            <!-- Empty State -->
-            <div class="sh-empty" id="clubs-empty" hidden>
-              <p>No sports clubs match your current filter.</p>
-              <button type="button" class="foot-btn foot-btn--ghost" id="reset-filters-btn">Reset filters</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- Upcoming Fixtures Strip (Connected to /api/tournaments/upcoming) -->
-        <section class="ab-sec sh-fixtures" aria-labelledby="fixtures-heading">
-          <div class="ab-wrap">
-            <div class="sh-fixtures__top">
-              <div>
-                <p class="ab-kicker ab-kicker--dark">Live Schedule</p>
-                <h2 id="fixtures-heading">Upcoming Trials &amp; Fixtures</h2>
-              </div>
-              <button type="button" class="sh-btn-secondary" id="refresh-fixtures-btn">Refresh Fixtures</button>
-            </div>
-            <div class="sh-fixtures__list" id="upcoming-fixtures-list">
-              <div class="sh-fixture-card">Loading upcoming fixtures...</div>
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
-
-    <!-- Footer + CTA Card -->
-    <div class="nsbm-chrome-foot">
-      <footer class="site-footer site-footer--card has-cta">
-        <div class="foot-wrap">
-          <section class="foot-cta" aria-labelledby="foot-cta-title">
-            <img class="foot-cta__media" src="https://d3c539pel8wzjz.cloudfront.net/wp-content/uploads/2026/11/campus-aerial-wide-1024x740.webp" alt="NSBM Green University campus" width="1024" height="740" decoding="async">
-            <div class="foot-cta__body">
-              <h2 id="foot-cta-title" class="foot-cta__title">Represent NSBM on the pitch, court, and mat</h2>
-              <p class="foot-cta__text">
-                Submit your membership or trial request directly to your chosen sports club through NSBM SportsHub.
-              </p>
-              <p class="foot-cta__actions">
-                <button type="button" class="foot-btn foot-btn--primary" id="cta-join-club-btn">Register for a Club ↗</button>
-                <a class="foot-btn foot-btn--ghost" href="./facilities.html">View Sports Facilities</a>
-              </p>
-            </div>
-          </section>
-
-          <div class="foot-panel">
-            <div class="foot-main">
-              <div class="foot-brand">
-                <a class="foot-logo" href="./index.html">
-                  <img src="https://d3c539pel8wzjz.cloudfront.net/wp-content/uploads/2022/12/logo_nsbm.png" alt="NSBM" width="131" height="60">
-                </a>
-                <address class="foot-address">
-                  Mahenwaththa, Pitipana<br>
-                  Homagama, Sri Lanka
-                </address>
-              </div>
-
-              <div class="foot-cols">
-                <nav class="foot-col" aria-label="SportsHub">
-                  <h2 class="foot-col__title">SportsHub</h2>
-                  <ul>
-                    <li><a href="./clubs.html">Sports Clubs</a></li>
-                    <li><a href="./facilities.html">Facilities</a></li>
-                    <li><a href="./events.html">Tournaments</a></li>
-                    <li><a href="./announcements.html">Announcements</a></li>
-                  </ul>
-                </nav>
-                <nav class="foot-col" aria-label="University">
-                  <h2 class="foot-col__title">NSBM</h2>
-                  <ul>
-                    <li><a href="https://www.nsbm.ac.lk/students-life/" rel="noopener">Student Life</a></li>
-                    <li><a href="https://www.nsbm.ac.lk/facilities/" rel="noopener">Campus Facilities</a></li>
-                    <li><a href="https://www.nsbm.ac.lk/contact-us/" rel="noopener">Contact NSBM</a></li>
-                  </ul>
-                </nav>
-              </div>
-            </div>
-
-            <div class="foot-bar">
-              <div class="foot-bottom">
-                <p class="foot-copyright">© 2026 NSBM SportsHub. All Rights Reserved.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </main>
   </div>
 
   <!-- Club Details & Join Modal -->
@@ -244,7 +149,7 @@
       <button type="button" class="sh-modal__close" id="close-modal-btn" aria-label="Close modal">✕</button>
 
       <div id="modal-detail-view">
-        <p class="ab-kicker ab-kicker--dark" id="modal-club-category">Sports Club</p>
+        <span class="eyebrow" id="modal-club-category">SPORTS CLUB</span>
         <h2 id="modal-title">Club Name</h2>
         <p class="sh-modal__desc" id="modal-club-desc"></p>
 
@@ -256,13 +161,13 @@
         </dl>
 
         <div class="sh-modal__actions">
-          <button type="button" class="foot-btn foot-btn--primary" id="switch-to-join-btn">Apply to Join Club</button>
-          <a class="foot-btn foot-btn--ghost" id="modal-official-link" href="#" target="_blank" rel="noopener">Official NSBM Page ↗</a>
+          <button type="button" class="btn btn-primary" id="switch-to-join-btn">Apply to Join Club</button>
+          <a class="btn btn-ghost" id="modal-official-link" href="#" target="_blank" rel="noopener">Official NSBM Page ↗</a>
         </div>
       </div>
 
       <form id="club-join-form" class="sh-form" novalidate hidden>
-        <p class="ab-kicker ab-kicker--dark">Membership &amp; Trial Request</p>
+        <span class="eyebrow">MEMBERSHIP &amp; TRIAL REQUEST</span>
         <h2 id="join-modal-title">Join an NSBM Sports Club</h2>
 
         <div class="sh-field">
@@ -304,13 +209,14 @@
         <div class="sh-form-feedback" id="join-feedback" role="status" aria-live="polite"></div>
 
         <div class="sh-modal__actions">
-          <button type="submit" class="foot-btn foot-btn--primary" id="submit-join-btn">Submit Application</button>
-          <button type="button" class="foot-btn foot-btn--ghost" id="back-to-detail-btn" hidden>Back to Club Info</button>
+          <button type="submit" class="btn btn-primary" id="submit-join-btn">Submit Application</button>
+          <button type="button" class="btn btn-ghost" id="back-to-detail-btn" hidden>Back to Club Info</button>
         </div>
       </form>
     </div>
   </div>
 
-  <script src="./clubs.js" defer></script>
+  <script type="module" src="services/guard.js"></script>
+  <script src="clubs.js" defer></script>
 </body>
 </html>
