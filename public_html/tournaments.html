@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tournaments & Results · NSBM SportsHub</title>
-  <link rel="stylesheet" href="student-dashboard.css">
+  <link rel="stylesheet" href="shared.css">
+  <link rel="stylesheet" href="tournaments.css">
 </head>
 <body data-require="any">
   <div class="app-shell">
@@ -52,29 +53,108 @@
     <main class="workspace">
       <header class="topbar">
         <div>
-          <span class="eyebrow">COMPETITION & SCORES</span>
-          <h1>Tournaments & Live Results</h1>
+          <span class="eyebrow">COMPETITION</span>
+          <h1>Tournaments & Results</h1>
+          <p class="muted">Register for tournaments, then follow scores and standings.</p>
         </div>
       </header>
 
       <div class="content">
-        <div class="card">
-          <h2>Active Tournaments & Match Results</h2>
-          <p class="muted">Check real-time brackets, schedules, and past match results.</p>
-          <div class="feed-list" style="margin-top: 15px;">
-            <div class="feed-item">
-              <strong>Inter-Faculty Championship Finals</strong>
-              <p class="muted">Status: Scheduled for Saturday · Venue: Indoor Stadium</p>
-            </div>
-            <div class="feed-item">
-              <strong>Taekwon-Do Sparring Tournament Results</strong>
-              <p class="muted">Faculty of Computing secured 1st place in team patterns.</p>
-            </div>
-          </div>
+        <div class="tabs" role="tablist" aria-label="Tournaments and results">
+          <button type="button" class="tab active" role="tab" id="tab-tournaments" data-tab="tournaments"
+                  aria-selected="true" aria-controls="panel-tournaments">Tournaments</button>
+          <button type="button" class="tab" role="tab" id="tab-results" data-tab="results"
+                  aria-selected="false" aria-controls="panel-results">Results</button>
         </div>
+
+        <!-- TOURNAMENTS -->
+        <section id="panel-tournaments" role="tabpanel" aria-labelledby="tab-tournaments">
+          <div class="toolbar">
+            <input id="search" type="search" placeholder="Search tournaments..." aria-label="Search tournaments">
+            <select id="status-filter" aria-label="Filter by status">
+              <option value="">All statuses</option>
+              <option value="registration_open">Registration open</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <select id="sport-filter" aria-label="Filter by sport">
+              <option value="">All sports</option>
+            </select>
+          </div>
+
+          <div id="t-state" class="state-box" hidden></div>
+          <div id="t-grid" class="t-grid"></div>
+        </section>
+
+        <!-- RESULTS -->
+        <section id="panel-results" role="tabpanel" aria-labelledby="tab-results" hidden>
+          <div class="toolbar">
+            <select id="r-tournament" aria-label="Filter by tournament">
+              <option value="">All tournaments</option>
+            </select>
+            <select id="r-sport" aria-label="Filter by sport">
+              <option value="">All sports</option>
+            </select>
+          </div>
+
+          <section id="admin-panel" class="card admin-panel" hidden>
+            <h2>Record a result</h2>
+            <form id="result-form" class="result-form">
+              <select id="f-tournament" required aria-label="Tournament"></select>
+              <input id="f-round" maxlength="60" placeholder="Round (e.g. Group A, Final)" aria-label="Round">
+              <input id="f-team-a" maxlength="120" placeholder="Team A" required aria-label="Team A">
+              <input id="f-score-a" type="number" min="0" step="1" placeholder="Score A" required aria-label="Score A">
+              <input id="f-team-b" maxlength="120" placeholder="Team B" required aria-label="Team B">
+              <input id="f-score-b" type="number" min="0" step="1" placeholder="Score B" required aria-label="Score B">
+              <input id="f-date" type="date" required aria-label="Match date">
+              <button type="submit" class="btn btn-primary">Save result</button>
+            </form>
+          </section>
+
+          <div id="r-state" class="state-box" hidden></div>
+
+          <div class="results-layout">
+            <section class="card">
+              <h2>Results</h2>
+              <div id="results-list" class="results-list"></div>
+            </section>
+
+            <section class="card">
+              <h2>Standings</h2>
+              <p id="standings-hint" class="muted"></p>
+              <div class="table-wrap">
+                <table class="standings" id="standings-table" hidden>
+                  <thead>
+                    <tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>
+                  </thead>
+                  <tbody id="standings-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
       </div>
     </main>
   </div>
+
+  <dialog id="register-dialog">
+    <form id="register-form">
+      <h2 id="register-title">Register</h2>
+      <p class="muted">Enter your team name, or leave it blank to use your own name.</p>
+      <input id="team-name" maxlength="120" placeholder="Team name" autocomplete="off">
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-outline" id="register-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+
   <script type="module" src="services/guard.js"></script>
+  <script src="mock-api.js"></script>
+  <script src="tournaments.js"></script>
 </body>
 </html>
