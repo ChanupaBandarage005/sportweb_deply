@@ -1,237 +1,651 @@
-<!doctype html>
-<html lang="en" data-theme="light">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sports Clubs · NSBM SportsHub</title>
-  <meta name="description" content="Explore NSBM Sports Clubs, check schedules and upcoming fixtures, and register for clubs through NSBM SportsHub.">
-  <link rel="stylesheet" href="student-dashboard.css">
-  <link rel="stylesheet" href="clubs.css">
-</head>
-<body data-require="student">
-  <div class="app-shell">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <a href="student-dashboard.html" class="brand" aria-label="NSBM SportsHub" style="text-decoration:none;">
-        <svg class="brand-mark" viewBox="34 14 407 444" width="32" height="32" aria-hidden="true" focusable="false">
-          <defs>
-            <linearGradient id="brand-blue" x1="40" y1="130" x2="360" y2="360" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#2463a1"/>
-              <stop offset="1" stop-color="#18558e"/>
-            </linearGradient>
-            <linearGradient id="brand-blue-top" x1="240" y1="20" x2="414" y2="133" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#205e9b"/>
-              <stop offset="1" stop-color="#245e96"/>
-            </linearGradient>
-            <linearGradient id="brand-green" x1="239" y1="180" x2="435" y2="280" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#39b143"/>
-              <stop offset="1" stop-color="#32a942"/>
-            </linearGradient>
-            <linearGradient id="brand-lime" x1="40" y1="200" x2="286" y2="380" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#8fc640"/>
-              <stop offset="1" stop-color="#88c440"/>
-            </linearGradient>
-          </defs>
-          <path fill="url(#brand-blue-top)" d="M240 18C294 20 351 30 396 50C405 77 411 106 414 133L239 145Z"/>
-          <path fill="url(#brand-blue)" d="M40 130C111 133 161 101 201 105C217 118 231 134 239 145L239 345C228 335 217 329 205 332C172 267 111 219 41 189Z"/>
-          <path fill="url(#brand-lime)" d="M40 46C103 51 165 74 201 105C161 102 143 131 40 131Z"/>
-          <path fill="url(#brand-blue)" d="M286 331L379 355C350 396 295 429 236 454C259 418 277 376 286 331Z"/>
-          <path fill="url(#brand-lime)" d="M205 332C217 329 229 335 239 345C253 333 269 329 286 332C278 380 257 428 236 454C231 410 221 367 205 332Z"/>
-          <path fill="url(#brand-green)" d="M239 116C278 86 309 125 414 132L435 133L435 363C375 367 327 340 286 333C268 329 251 332 239 345Z"/>
-          <path fill="url(#brand-lime)" d="M40 214C125 251 205 321 207 444C107 421 50 302 40 214Z"/>
-        </svg>
-        <span>NSBM<span class="brand-sub">SPORTSHUB</span></span>
-      </a>
-      <nav class="nav-list">
-        <a href="student-dashboard.html">Student Portal</a>
-        <a href="book-facilities.html">Book Facilities</a>
-        <a href="clubs.html" class="active" aria-current="page">Clubs</a>
-        <a href="training-schedule.html">Training Schedule</a>
-        <a href="tournaments.html">Tournaments &amp; Results</a>
-        <a href="index.html" id="logout-btn">Sign out</a>
-      </nav>
-    </aside>
+(() => {
+  const init = () => {
+    const mainEl = document.getElementById("main");
+    const API_BASE = (mainEl?.dataset.apiBase || "/backend/api").replace(/\/+$/, "");
+    const USER_KEY = "sportshub_user";
 
-    <!-- Workspace -->
-    <main id="main" class="workspace ab ab--clubs ab-js" data-api-base="/api">
-      <header class="topbar topbar--flex">
-        <div>
-          <span class="eyebrow">CLUBS &amp; SOCIETIES</span>
-          <h1 id="ab-title">Sports Clubs</h1>
-        </div>
-        <div class="topbar-actions">
-          <span class="badge badge-success" id="api-sync-status" aria-live="polite">Syncing with SportsHub API...</span>
-          <button type="button" class="btn btn-primary" id="open-join-modal-btn" style="margin-top:0;">Join a Club</button>
-        </div>
-      </header>
+    const ENDPOINTS = {
+      clubs: `${API_BASE}/clubs.php`,
+      joinClub: `${API_BASE}/clubs.php`,
+      upcomingFixtures: `${API_BASE}/tournaments.php`,
+    };
 
-      <div class="content">
-        <!-- Directory & Filters Card -->
-        <section class="card" aria-labelledby="ab-clubs-title">
-          <div class="section-head">
+    function getUser() {
+      try {
+        const raw = sessionStorage.getItem(USER_KEY) || localStorage.getItem(USER_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function getErrorMessage(err, fallback = "Could not complete request right now. Please try again later.") {
+      if (typeof err === "string" && err.trim()) return err.trim();
+      if (err instanceof Error && typeof err.message === "string" && err.message.trim()) {
+        return err.message.trim();
+      }
+      if (err && typeof err === "object") {
+        if (typeof err.message === "string" && err.message.trim()) return err.message.trim();
+        if (typeof err.error === "string" && err.error.trim()) return err.error.trim();
+      }
+      return fallback;
+    }
+
+    function getHtmlClubImages() {
+      const tpl = document.getElementById("club-images");
+      const map = new Map();
+      if (!tpl) return map;
+
+      tpl.content.querySelectorAll("img[data-slug]").forEach((img) => {
+        const slug = img.dataset.slug?.trim();
+        const src = img.getAttribute("src")?.trim();
+        if (slug && src) {
+          map.set(slug, src);
+        }
+      });
+      return map;
+    }
+
+    const HTML_CLUB_IMAGES = getHtmlClubImages();
+
+    function resolveClubImage(slug, apiImage = "") {
+      return HTML_CLUB_IMAGES.get(slug) || apiImage || "";
+    }
+
+    function slugify(name = "") {
+      return String(name)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    }
+
+    const FALLBACK_CLUBS = [
+      {
+        id: 1,
+        slug: "nsbm-athletics-club",
+        name: "Athletics Club",
+        category: "field",
+        categoryLabel: "Track & Field",
+        venue: "NSBM Athletics Track & Grounds",
+        schedule: "Tue & Thu · 4:00 PM – 6:00 PM",
+        membersCount: 84,
+        lead: "Athletics Captain · Sports Council",
+        summary: "Sprint, middle-distance, relay, and field event training for university track meets and inter-university championships.",
+        officialUrl: "https://www.nsbm.ac.lk/club/nsbm-athletics-club/",
+      },
+      {
+        id: 2,
+        slug: "nsbm-badminton-club",
+        name: "Badminton Club",
+        category: "indoor",
+        categoryLabel: "Indoor Court",
+        venue: "NSBM Indoor Sports Complex",
+        schedule: "Mon & Wed · 4:30 PM – 6:30 PM",
+        membersCount: 68,
+        lead: "Badminton Captain · Sports Council",
+        summary: "Singles and doubles drills, footwork conditioning, and selection trials for inter-faculty and SLUG badminton tournaments.",
+        officialUrl: "https://www.nsbm.ac.lk/club/nsbm-badminton-club/",
+      },
+      {
+        id: 3,
+        slug: "chess-club",
+        name: "Chess Club",
+        category: "indoor",
+        categoryLabel: "Mind Sport",
+        venue: "Student Centre · Level 2",
+        schedule: "Wed & Fri · 3:30 PM – 5:30 PM",
+        membersCount: 52,
+        lead: "Chess President · Sports Council",
+        summary: "Rapid and classical over-the-board sessions, opening prep, and inter-university chess squad selection.",
+        officialUrl: "https://www.nsbm.ac.lk/club/chess-club/",
+      },
+      {
+        id: 4,
+        slug: "cricket-club",
+        name: "Cricket Club",
+        category: "field",
+        categoryLabel: "Field Sport",
+        venue: "NSBM Cricket Ground & Nets",
+        schedule: "Tue, Thu & Sat · 3:30 PM – 6:00 PM",
+        membersCount: 96,
+        lead: "Cricket Captain · Sports Council",
+        summary: "Net practice, fielding drills, and squad matches across hard-ball and university tournament formats.",
+        officialUrl: "https://www.nsbm.ac.lk/club/cricket-club/",
+      },
+      {
+        id: 5,
+        slug: "nsbm-martial-arts-club",
+        name: "Martial Arts Club",
+        category: "combat-aquatic",
+        categoryLabel: "Combat & Martial Arts",
+        venue: "NSBM Multi-Purpose Martial Arts Hall",
+        schedule: "Tue & Thu · 4:30 PM – 6:30 PM",
+        membersCount: 61,
+        lead: "Martial Arts Lead · Sports Council",
+        summary: "Structured technique, pattern/form discipline, sparring conditioning, and grading preparation for beginners and experienced practitioners.",
+        officialUrl: "https://www.nsbm.ac.lk/club/nsbm-martial-arts-club/",
+      },
+      {
+        id: 6,
+        slug: "nsbm-netball-club",
+        name: "Netball Club",
+        category: "field",
+        categoryLabel: "Court Sport",
+        venue: "NSBM Outdoor Courts",
+        schedule: "Mon & Thu · 4:00 PM – 6:00 PM",
+        membersCount: 57,
+        lead: "Netball Captain · Sports Council",
+        summary: "Tactical court play, shooting accuracy, agility work, and inter-university netball fixtures.",
+        officialUrl: "https://www.nsbm.ac.lk/club/nsbm-netball-club/",
+      },
+      {
+        id: 7,
+        slug: "nsbm-rugby-club",
+        name: "Rugby Club",
+        category: "field",
+        categoryLabel: "Field Sport",
+        venue: "NSBM Main Sports Field",
+        schedule: "Mon, Wed & Fri · 4:15 PM – 6:30 PM",
+        membersCount: 73,
+        lead: "Rugby Captain · Sports Council",
+        summary: "Contact and sevens rugby conditioning, set-piece execution, and inter-university tournament preparation.",
+        officialUrl: "https://www.nsbm.ac.lk/club/nsbm-rugby-club/",
+      },
+      {
+        id: 8,
+        slug: "swimming-club",
+        name: "Swimming Club",
+        category: "combat-aquatic",
+        categoryLabel: "Aquatics",
+        venue: "NSBM Aquatic Centre",
+        schedule: "Tue & Fri · 3:30 PM – 5:30 PM",
+        membersCount: 49,
+        lead: "Swimming Captain · Sports Council",
+        summary: "Stroke mechanics, endurance sets, and time trials for freestyle, backstroke, breaststroke, and butterfly swimmers.",
+        officialUrl: "https://www.nsbm.ac.lk/club/swimming-club/",
+      },
+      {
+        id: 9,
+        slug: "table-tennis-club",
+        name: "Table Tennis Club",
+        category: "indoor",
+        categoryLabel: "Indoor Sport",
+        venue: "NSBM Indoor Recreation Zone",
+        schedule: "Wed & Fri · 4:00 PM – 6:00 PM",
+        membersCount: 44,
+        lead: "Table Tennis Lead · Sports Council",
+        summary: "Spin control, rally consistency, ladder matches, and inter-faculty table tennis tournaments.",
+        officialUrl: "https://www.nsbm.ac.lk/club/table-tennis-club/",
+      },
+      {
+        id: 10,
+        slug: "tennis-club",
+        name: "Tennis Club",
+        category: "field",
+        categoryLabel: "Court Sport",
+        venue: "NSBM Hard Courts",
+        schedule: "Tue & Thu · 4:00 PM – 6:00 PM",
+        membersCount: 38,
+        lead: "Tennis Captain · Sports Council",
+        summary: "Groundstroke consistency, serve drills, and singles/doubles match play across all skill tiers.",
+        officialUrl: "https://www.nsbm.ac.lk/club/tennis-club/",
+      },
+      {
+        id: 11,
+        slug: "nsbm-volleyball-club",
+        name: "Volleyball Club",
+        category: "field",
+        categoryLabel: "Court Sport",
+        venue: "NSBM Sports Arena",
+        schedule: "Mon, Wed & Fri · 4:00 PM – 6:00 PM",
+        membersCount: 66,
+        lead: "Volleyball Captain · Sports Council",
+        summary: "Passing, setting, spiking, rotation drills, and inter-university volleyball squad training.",
+        officialUrl: "https://www.nsbm.ac.lk/club/nsbm-volleyball-club/",
+      },
+    ];
+
+    const FALLBACK_FIXTURES = [
+      {
+        id: 1,
+        dateLabel: "Upcoming · Nov 28, 2026",
+        title: "Inter-Faculty Athletics & Relay Trials",
+        venue: "NSBM Athletics Track · 3:30 PM",
+      },
+      {
+        id: 2,
+        dateLabel: "Upcoming · Dec 03, 2026",
+        title: "Campus Open Chess & Table Tennis Qualifiers",
+        venue: "Student Centre & Indoor Zone · 2:00 PM",
+      },
+      {
+        id: 3,
+        dateLabel: "Upcoming · Dec 09, 2026",
+        title: "Volleyball & Cricket Squad Selection Camp",
+        venue: "NSBM Main Grounds · 4:00 PM",
+      },
+    ];
+
+    const gridEl = document.getElementById("clubs-grid");
+    const emptyEl = document.getElementById("clubs-empty");
+    const searchInput = document.getElementById("club-search-input");
+    const filterChips = Array.from(document.querySelectorAll(".sh-chip[data-category]"));
+    const resetFiltersBtn = document.getElementById("reset-filters-btn");
+    const syncStatusEl = document.getElementById("api-sync-status");
+    const heroCountEl = document.getElementById("hero-club-count");
+    const dirCountEl = document.getElementById("directory-club-count");
+    const fixturesListEl = document.getElementById("upcoming-fixtures-list");
+    const refreshFixturesBtn = document.getElementById("refresh-fixtures-btn");
+
+    const modalEl = document.getElementById("club-modal");
+    const closeModalBtn = document.getElementById("close-modal-btn");
+    const detailViewEl = document.getElementById("modal-detail-view");
+    const joinFormEl = document.getElementById("club-join-form");
+    const joinClubSelect = document.getElementById("join-club-select");
+    const switchToJoinBtn = document.getElementById("switch-to-join-btn");
+    const backToDetailBtn = document.getElementById("back-to-detail-btn");
+    const joinFeedbackEl = document.getElementById("join-feedback");
+    const openJoinModalBtn = document.getElementById("open-join-modal-btn");
+    const ctaJoinClubBtn = document.getElementById("cta-join-club-btn");
+
+    const state = {
+      clubs: [],
+      category: "all",
+      search: "",
+      activeClubSlug: null,
+      lastFocusedEl: null,
+    };
+
+    function escapeHtml(value = "") {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function setSyncStatus(text, isFallback = false) {
+      if (!syncStatusEl) return;
+      syncStatusEl.textContent = text;
+      syncStatusEl.className = isFallback ? "badge badge-warning" : "badge badge-success";
+      syncStatusEl.style.background = isFallback ? "#fef3c7" : "#e2f4e9";
+      syncStatusEl.style.color = isFallback ? "#92400e" : "#136747";
+    }
+
+    async function fetchJson(url, options = {}) {
+      const user = getUser();
+      const headers = {
+        Accept: "application/json",
+        ...(user?.id ? { "X-User-Id": String(user.id) } : {}),
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(options.headers || {}),
+      };
+
+      const response = await fetch(url, {
+        credentials: "include",
+        ...options,
+        headers,
+      });
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok || data.success === false) {
+        const serverMsg = getErrorMessage(
+          data,
+          `Request failed (HTTP ${response.status}). Check that your PHP backend is running and accessible.`
+        );
+        throw new Error(serverMsg);
+      }
+
+      return data;
+    }
+
+    function mapCategory(sport = "") {
+      const s = String(sport).toLowerCase();
+      if (s.includes("swim") || s.includes("martial") || s.includes("aquatic") || s.includes("combat")) {
+        return "combat-aquatic";
+      }
+      if (s.includes("badminton") || s.includes("chess") || s.includes("table tennis") || s.includes("indoor")) {
+        return "indoor";
+      }
+      return "field";
+    }
+
+    function normalizeClubs(payload) {
+      const rawList = Array.isArray(payload) ? payload : payload?.data ?? payload?.clubs;
+      if (!Array.isArray(rawList) || rawList.length === 0) {
+        throw new Error("Invalid clubs payload");
+      }
+
+      return rawList.map((club, index) => {
+        const name = club.name || club.club_name || "Sports Club";
+        const slug = club.slug || slugify(name) || `club-${index + 1}`;
+        const fallback = FALLBACK_CLUBS.find((f) => f.slug === slug);
+        const sport = club.sport || fallback?.categoryLabel || "Sports Club";
+
+        return {
+          id: Number(club.id ?? fallback?.id ?? index + 1),
+          slug,
+          name,
+          category: club.category || mapCategory(sport),
+          categoryLabel: club.category_label || club.categoryLabel || sport,
+          venue: club.venue || club.location || fallback?.venue || "NSBM Sports Facilities",
+          schedule: club.schedule || club.training_schedule || fallback?.schedule || "Weekly Campus Sessions",
+          membersCount: club.member_count ?? club.members_count ?? club.membersCount ?? fallback?.membersCount ?? "Active",
+          lead: club.president || club.lead || club.captain || fallback?.lead || "NSBM Sports Council",
+          summary: club.description || club.summary || fallback?.summary || "Official NSBM student sports club.",
+          image: resolveClubImage(slug, club.image || club.image_url),
+          officialUrl: club.official_url || club.officialUrl || fallback?.officialUrl || "https://www.nsbm.ac.lk/sports-clubs/",
+          myStatus: club.my_status || null,
+        };
+      });
+    }
+
+    async function loadClubs() {
+      gridEl?.setAttribute("aria-busy", "true");
+      try {
+        const data = await fetchJson(ENDPOINTS.clubs);
+        state.clubs = normalizeClubs(data);
+        setSyncStatus("Live · clubs.php", false);
+      } catch (_err) {
+        state.clubs = FALLBACK_CLUBS.map((club) => ({
+          ...club,
+          image: resolveClubImage(club.slug),
+        }));
+        setSyncStatus("Preview · Local Data", true);
+      } finally {
+        gridEl?.setAttribute("aria-busy", "false");
+      }
+
+      const totalCount = state.clubs.length;
+      if (heroCountEl) heroCountEl.textContent = String(totalCount);
+      if (dirCountEl) dirCountEl.textContent = String(totalCount);
+      if (gridEl) gridEl.dataset.count = String(totalCount);
+
+      populateClubSelect();
+      renderClubs();
+    }
+
+    function populateClubSelect() {
+      if (!joinClubSelect) return;
+      joinClubSelect.innerHTML = state.clubs
+        .map(
+          (club) =>
+            `<option value="${escapeHtml(String(club.id))}">${escapeHtml(club.name)}</option>`
+        )
+        .join("");
+    }
+
+    function getFilteredClubs() {
+      const q = state.search.trim().toLowerCase();
+      return state.clubs.filter((club) => {
+        const matchesCategory = state.category === "all" || club.category === state.category;
+        const haystack = `${club.name} ${club.categoryLabel} ${club.venue} ${club.lead} ${club.summary}`.toLowerCase();
+        const matchesSearch = !q || haystack.includes(q);
+        return matchesCategory && matchesSearch;
+      });
+    }
+
+    function renderClubs() {
+      if (!gridEl) return;
+      const filtered = getFilteredClubs();
+
+      if (filtered.length === 0) {
+        gridEl.innerHTML = "";
+        if (emptyEl) emptyEl.hidden = false;
+        return;
+      }
+
+      if (emptyEl) emptyEl.hidden = true;
+      gridEl.innerHTML = filtered
+        .map(
+          (club) => `
+          <li class="ab-clubcard">
             <div>
-              <span class="eyebrow"><span id="directory-club-count">11</span> CLUBS TO JOIN</span>
-              <h2 id="ab-clubs-title">University Sports Directory</h2>
-              <p class="muted">Explore active squads, check training schedules, and submit trial or membership requests.</p>
+              ${
+                club.image
+                  ? `<img src="${escapeHtml(club.image)}" alt="${escapeHtml(club.name)}" decoding="async">`
+                  : ""
+              }
+              <span class="badge badge-success" style="margin-bottom: 6px;">${escapeHtml(club.categoryLabel)}</span>
+              <h3>${escapeHtml(club.name)}</h3>
+              <p style="margin-bottom: 8px;">${escapeHtml(club.summary)}</p>
+              <p class="muted">${escapeHtml(club.venue)} · ${escapeHtml(club.schedule)}</p>
             </div>
-          </div>
-
-          <div class="sh-toolbar" role="region" aria-label="Filter sports clubs">
-            <div class="sh-search-wrap">
-              <label for="club-search-input" class="sr-only">Search sports clubs</label>
-              <input
-                type="search"
-                id="club-search-input"
-                class="sh-input"
-                placeholder="Search by sport, venue, or captain..."
-                autocomplete="off"
-              >
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+              <button type="button" class="btn btn-primary" style="margin-top:0;" data-club-slug="${escapeHtml(club.slug)}">
+                Details &amp; Join
+              </button>
             </div>
+          </li>
+        `
+        )
+        .join("");
+    }
 
-            <div class="sh-filters" role="group" aria-label="Category filter">
-              <button type="button" class="sh-chip is-active" data-category="all">All Sports</button>
-              <button type="button" class="sh-chip" data-category="field">Field &amp; Court</button>
-              <button type="button" class="sh-chip" data-category="indoor">Indoor &amp; Mind</button>
-              <button type="button" class="sh-chip" data-category="combat-aquatic">Combat &amp; Aquatics</button>
-            </div>
+    async function loadUpcomingFixtures() {
+      if (!fixturesListEl) return;
+      fixturesListEl.innerHTML = `<div class="feed-item"><strong>Loading upcoming fixtures...</strong></div>`;
+
+      try {
+        const data = await fetchJson(ENDPOINTS.upcomingFixtures);
+        const raw = Array.isArray(data) ? data : data?.data ?? data?.fixtures;
+        if (!Array.isArray(raw) || raw.length === 0) {
+          throw new Error("No fixtures returned");
+        }
+        renderFixtures(
+          raw.slice(0, 5).map((item, i) => ({
+            id: item.id || i + 1,
+            dateLabel: item.date_label || item.dateLabel || item.start_date || item.event_date || "Upcoming",
+            title: item.title || item.name || "SportsHub Event",
+            venue: item.venue || item.location || item.sport || "NSBM Campus",
+          }))
+        );
+      } catch (_err) {
+        renderFixtures(FALLBACK_FIXTURES);
+      }
+    }
+
+    function renderFixtures(items) {
+      if (!fixturesListEl) return;
+      fixturesListEl.innerHTML = items
+        .map(
+          (f) => `
+          <div class="feed-item">
+            <span class="eyebrow">${escapeHtml(f.dateLabel)}</span>
+            <strong>${escapeHtml(f.title)}</strong>
+            <span class="muted">${escapeHtml(f.venue)}</span>
           </div>
+        `
+        )
+        .join("");
+    }
 
-          <!-- Club Cards Grid (Populated via clubs.js) -->
-          <ul class="ab-clubgrid" id="clubs-grid" data-count="11" aria-busy="true"></ul>
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
 
-          <!-- Empty State -->
-          <div class="sh-empty" id="clubs-empty" hidden>
-            <p class="muted">No sports clubs match your current filter.</p>
-            <button type="button" class="btn btn-ghost" id="reset-filters-btn">Reset filters</button>
-          </div>
-        </section>
+    function openModal({ mode = "detail", clubSlug = null, triggerEl = null } = {}) {
+      if (!modalEl) return;
+      state.lastFocusedEl = triggerEl || document.activeElement;
 
-        <!-- Upcoming Fixtures Card -->
-        <section class="card" style="margin-top: 24px;" aria-labelledby="fixtures-heading">
-          <div class="section-head">
-            <div>
-              <span class="eyebrow">LIVE SCHEDULE</span>
-              <h2 id="fixtures-heading">Upcoming Trials &amp; Fixtures</h2>
-              <p class="muted">Inter-faculty trials, friendly matches, and upcoming tournament dates.</p>
-            </div>
-            <button type="button" class="btn btn-ghost" id="refresh-fixtures-btn" style="margin-top:0;">Refresh Fixtures</button>
-          </div>
+      const club =
+        state.clubs.find((c) => c.slug === clubSlug) ||
+        state.clubs.find((c) => c.slug === state.activeClubSlug) ||
+        state.clubs[0];
 
-          <div class="feed-list" id="upcoming-fixtures-list">
-            <div class="feed-item">
-              <strong>Loading upcoming fixtures...</strong>
-            </div>
-          </div>
-        </section>
+      if (club) {
+        state.activeClubSlug = club.slug;
+        setText("modal-club-category", club.categoryLabel.toUpperCase());
+        setText("modal-title", club.name);
+        setText("modal-club-desc", club.summary);
+        setText("modal-club-venue", club.venue);
+        setText("modal-club-schedule", club.schedule);
+        setText("modal-club-members", String(club.membersCount));
+        setText("modal-club-lead", club.lead);
 
-        <!-- Bottom Action Banner -->
-        <section class="card cta-banner" style="margin-top: 24px;" aria-labelledby="foot-cta-title">
-          <div>
-            <span class="eyebrow" style="color: var(--lime);">GET INVOLVED</span>
-            <h2 id="foot-cta-title" style="color: #fff;">Represent NSBM on the pitch, court, and mat</h2>
-            <p style="color: #a7b6c9; font-size: 12px; margin-bottom: 0;">
-              Submit your membership or trial request directly to your chosen sports club through NSBM SportsHub.
-            </p>
-          </div>
-          <div class="cta-actions">
-            <button type="button" class="btn btn-primary" id="cta-join-club-btn" style="margin-top:0;">Register for a Club</button>
-            <a class="btn btn-ghost-dark" href="book-facilities.html" style="margin-top:0;">View Sports Facilities</a>
-          </div>
-        </section>
-      </div>
-    </main>
-  </div>
+        const officialLink = document.getElementById("modal-official-link");
+        if (officialLink) officialLink.href = club.officialUrl;
 
-  <!-- Club Details & Join Modal -->
-  <div class="sh-modal" id="club-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
-    <div class="sh-modal__backdrop" data-close-modal></div>
-    <div class="sh-modal__dialog">
-      <button type="button" class="sh-modal__close" id="close-modal-btn" aria-label="Close modal">✕</button>
+        if (joinClubSelect) {
+          joinClubSelect.value = String(club.id);
+        }
+      }
 
-      <div id="modal-detail-view">
-        <span class="eyebrow" id="modal-club-category">SPORTS CLUB</span>
-        <h2 id="modal-title">Club Name</h2>
-        <p class="sh-modal__desc" id="modal-club-desc"></p>
+      if (joinFeedbackEl) {
+        joinFeedbackEl.textContent = "";
+        joinFeedbackEl.style.color = "";
+      }
 
-        <dl class="sh-meta-list">
-          <div><dt>Training Venue</dt><dd id="modal-club-venue">—</dd></div>
-          <div><dt>Schedule</dt><dd id="modal-club-schedule">—</dd></div>
-          <div><dt>Active Members</dt><dd id="modal-club-members">—</dd></div>
-          <div><dt>Club Lead</dt><dd id="modal-club-lead">—</dd></div>
-        </dl>
+      const isJoin = mode === "join";
+      if (detailViewEl) detailViewEl.hidden = isJoin;
+      if (joinFormEl) joinFormEl.hidden = !isJoin;
+      if (backToDetailBtn) backToDetailBtn.hidden = !(isJoin && club);
 
-        <div class="sh-modal__actions">
-          <button type="button" class="btn btn-primary" id="switch-to-join-btn">Apply to Join Club</button>
-          <a class="btn btn-ghost" id="modal-official-link" href="#" target="_blank" rel="noopener">Official NSBM Page ↗</a>
-        </div>
-      </div>
+      modalEl.hidden = false;
+      closeModalBtn?.focus();
+    }
 
-      <form id="club-join-form" class="sh-form" novalidate hidden>
-        <span class="eyebrow">MEMBERSHIP &amp; TRIAL REQUEST</span>
-        <h2 id="join-modal-title">Join an NSBM Sports Club</h2>
+    function closeModal() {
+      if (!modalEl) return;
+      modalEl.hidden = true;
+      if (state.lastFocusedEl && typeof state.lastFocusedEl.focus === "function") {
+        state.lastFocusedEl.focus();
+      }
+      state.lastFocusedEl = null;
+    }
 
-        <div class="sh-field">
-          <label for="join-club-select">Select Club</label>
-          <select id="join-club-select" name="club_slug" required></select>
-        </div>
+    async function handleJoinSubmit(event) {
+      event.preventDefault();
+      if (!joinFormEl || !joinFeedbackEl) return;
 
-        <div class="sh-field">
-          <label for="join-student-name">Full Name</label>
-          <input type="text" id="join-student-name" name="student_name" required placeholder="e.g., Saman Kumara">
-        </div>
+      const formData = new FormData(joinFormEl);
+      const clubId = Number(formData.get("club_slug") || 0);
+      const studentName = String(formData.get("student_name") || "").trim();
+      const studentId = String(formData.get("student_id") || "").trim();
+      const faculty = String(formData.get("faculty") || "");
+      const email = String(formData.get("email") || "").trim();
+      const notes = String(formData.get("notes") || "").trim();
 
-        <div class="sh-field-row">
-          <div class="sh-field">
-            <label for="join-student-id">Student ID</label>
-            <input type="text" id="join-student-id" name="student_id" required placeholder="e.g., 29412">
-          </div>
-          <div class="sh-field">
-            <label for="join-faculty">Faculty</label>
-            <select id="join-faculty" name="faculty" required>
-              <option value="Faculty of Computing">Faculty of Computing</option>
-              <option value="Faculty of Business">Faculty of Business</option>
-              <option value="Faculty of Engineering">Faculty of Engineering</option>
-              <option value="Faculty of Science">Faculty of Science</option>
-            </select>
-          </div>
-        </div>
+      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (!clubId || !studentName || !studentId || !emailValid) {
+        joinFeedbackEl.textContent = "Please select a club and enter a valid name, student ID, and email address.";
+        joinFeedbackEl.style.color = "#b91c1c";
+        return;
+      }
 
-        <div class="sh-field">
-          <label for="join-email">NSBM / Personal Email</label>
-          <input type="email" id="join-email" name="email" required placeholder="student@students.nsbm.ac.lk">
-        </div>
+      const submitBtn = document.getElementById("submit-join-btn");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Submitting...";
+      }
+      joinFeedbackEl.textContent = "";
 
-        <div class="sh-field">
-          <label for="join-experience">Experience / Notes (Optional)</label>
-          <textarea id="join-experience" name="notes" rows="3" placeholder="Prior experience, belt/rank, position, or preferred training slot..."></textarea>
-        </div>
+      try {
+        const res = await fetchJson(ENDPOINTS.joinClub, {
+          method: "POST",
+          body: JSON.stringify({
+            club_id: clubId,
+            student_name: studentName,
+            student_id: studentId,
+            faculty,
+            email,
+            notes,
+          }),
+        });
 
-        <div class="sh-form-feedback" id="join-feedback" role="status" aria-live="polite"></div>
+        const clubName = res?.data?.club_name || state.clubs.find((c) => c.id === clubId)?.name || "club";
+        joinFeedbackEl.textContent =
+          typeof res?.message === "string" && res.message
+            ? res.message
+            : `Membership request submitted for ${clubName}.`;
+        joinFeedbackEl.style.color = "#136747";
+        joinFormEl.reset();
+        if (joinClubSelect) {
+          joinClubSelect.value = String(clubId);
+        }
+        loadClubs();
+      } catch (err) {
+        joinFeedbackEl.textContent = getErrorMessage(err);
+        joinFeedbackEl.style.color = "#b91c1c";
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Submit Application";
+        }
+      }
+    }
 
-        <div class="sh-modal__actions">
-          <button type="submit" class="btn btn-primary" id="submit-join-btn">Submit Application</button>
-          <button type="button" class="btn btn-ghost" id="back-to-detail-btn" hidden>Back to Club Info</button>
-        </div>
-      </form>
-    </div>
-  </div>
+    gridEl?.addEventListener("click", (event) => {
+      const trigger = event.target.closest("[data-club-slug]");
+      if (!trigger) return;
+      openModal({ mode: "detail", clubSlug: trigger.dataset.clubSlug, triggerEl: trigger });
+    });
 
-  <!-- Add, edit, or remove club images directly by data-slug -->
-  <template id="club-images">
-    <img data-slug="nsbm-athletics-club" src="assets/images/NSBM Athletics Club Logo.png" alt="Athletics Club Logo">
-    <img data-slug="nsbm-badminton-club" src="assets/images/NSBM Badminton Club Logo.png" alt="Badminton Club Logo">
-    <img data-slug="chess-club" src="assets/images/NSBM Chess Club Logo.jpg" alt="Chess Club Logo">
-    <img data-slug="cricket-club" src="assets/images/NSBM Cricket Club Logo.jpg" alt="Cricket Club Logo">
-    <img data-slug="nsbm-martial-arts-club" src="assets/images/NSBM Martial Arts Club Logo.png" alt="Martial Arts Club Logo">
-    <img data-slug="nsbm-netball-club" src="assets/images/NSBM Netball Club Logo.png" alt="Netball Club Logo">
-    <img data-slug="nsbm-rugby-club" src="assets/images/NSBM Rugby Club Logo.jpg" alt="Rugby Club Logo">
-    <img data-slug="swimming-club" src="assets/images/NSBM Swimming Club Logo.jpg" alt="Swimming Club Logo">
-    <img data-slug="table-tennis-club" src="assets/images/Nsbm Table Tennis Club Logo.png" alt="Table Tennis Club Logo">
-    <img data-slug="tennis-club" src="assets/images/NSBM Tennis Club Logo.jpg" alt="Tennis Club Logo">
-    <img data-slug="nsbm-volleyball-club" src="assets/images/NSBM Volleyball Club Logo.jpg" alt="Volleyball Club Logo">
-  </template>
+    searchInput?.addEventListener("input", (event) => {
+      state.search = event.target.value;
+      renderClubs();
+    });
 
-  <script type="module" src="services/guard.js"></script>
-  <script src="clubs.js" defer></script>
-</body>
-</html>
+    filterChips.forEach((chip) => {
+      chip.addEventListener("click", () => {
+        filterChips.forEach((c) => c.classList.remove("is-active"));
+        chip.classList.add("is-active");
+        state.category = chip.dataset.category || "all";
+        renderClubs();
+      });
+    });
+
+    resetFiltersBtn?.addEventListener("click", () => {
+      state.category = "all";
+      state.search = "";
+      if (searchInput) searchInput.value = "";
+      filterChips.forEach((c) => c.classList.toggle("is-active", c.dataset.category === "all"));
+      renderClubs();
+    });
+
+    refreshFixturesBtn?.addEventListener("click", loadUpcomingFixtures);
+
+    openJoinModalBtn?.addEventListener("click", (e) => openModal({ mode: "join", triggerEl: e.currentTarget }));
+    ctaJoinClubBtn?.addEventListener("click", (e) => openModal({ mode: "join", triggerEl: e.currentTarget }));
+    switchToJoinBtn?.addEventListener("click", (e) =>
+      openModal({ mode: "join", clubSlug: state.activeClubSlug, triggerEl: e.currentTarget })
+    );
+    backToDetailBtn?.addEventListener("click", (e) =>
+      openModal({ mode: "detail", clubSlug: state.activeClubSlug, triggerEl: e.currentTarget })
+    );
+
+    closeModalBtn?.addEventListener("click", closeModal);
+    modalEl?.addEventListener("click", (event) => {
+      if (event.target.hasAttribute("data-close-modal")) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && modalEl && !modalEl.hidden) {
+        closeModal();
+      }
+    });
+
+    joinFormEl?.addEventListener("submit", handleJoinSubmit);
+
+    loadClubs();
+    loadUpcomingFixtures();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
+})();
