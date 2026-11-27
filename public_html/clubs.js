@@ -1,7 +1,7 @@
 (() => {
   const init = () => {
     const mainEl = document.getElementById("main");
-    const API_BASE = (mainEl?.dataset.apiBase || "api").replace(/\/+$/, "");
+    const API_BASE = (mainEl?.dataset.apiBase || "/backend/api").replace(/\/+$/, "");
     const USER_KEY = "sportshub_user";
 
     const ENDPOINTS = {
