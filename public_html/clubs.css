@@ -306,3 +306,13 @@
   object-fit: cover !important;
   object-position: center 46%;
 }
+
+/* Official NSBM Page button - light green */
+#modal-official-link {
+  background: #e6f8c4;
+  color: #000 !important;
+  border: 1px solid #b8f34a;
+}
+#modal-official-link:hover {
+  background: #d6f2a0;
+}
