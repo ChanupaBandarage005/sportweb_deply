@@ -19,6 +19,18 @@
       }
     }
 
+    function getErrorMessage(err, fallback = "Could not complete request right now. Please try again later.") {
+      if (typeof err === "string" && err.trim()) return err.trim();
+      if (err instanceof Error && typeof err.message === "string" && err.message.trim()) {
+        return err.message.trim();
+      }
+      if (err && typeof err === "object") {
+        if (typeof err.message === "string" && err.message.trim()) return err.message.trim();
+        if (typeof err.error === "string" && err.error.trim()) return err.error.trim();
+      }
+      return fallback;
+    }
+
     function getHtmlClubImages() {
       const tpl = document.getElementById("club-images");
       const map = new Map();
@@ -277,10 +289,22 @@
         headers,
       });
 
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || data.message || `HTTP ${response.status} from ${url}`);
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
       }
+
+      if (!response.ok || data.success === false) {
+        const serverMsg = getErrorMessage(
+          data,
+          `Request failed (HTTP ${response.status}). Check that your PHP backend is running and accessible.`
+        );
+        throw new Error(serverMsg);
+      }
+
       return data;
     }
 
@@ -541,7 +565,9 @@
 
         const clubName = res?.data?.club_name || state.clubs.find((c) => c.id === clubId)?.name || "club";
         joinFeedbackEl.textContent =
-          res?.message || `Membership request submitted for ${clubName}.`;
+          typeof res?.message === "string" && res.message
+            ? res.message
+            : `Membership request submitted for ${clubName}.`;
         joinFeedbackEl.style.color = "#136747";
         joinFormEl.reset();
         if (joinClubSelect) {
@@ -549,8 +575,7 @@
         }
         loadClubs();
       } catch (err) {
-        joinFeedbackEl.textContent =
-          err?.message || "Could not submit join request right now. Please try again later.";
+        joinFeedbackEl.textContent = getErrorMessage(err);
         joinFeedbackEl.style.color = "#b91c1c";
       } finally {
         if (submitBtn) {
