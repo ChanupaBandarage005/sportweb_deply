@@ -1,7 +1,7 @@
-/* true = fake data from mock-api.js, false = real PHP backend */
-const USE_MOCK = true;
+/* false = live backend API under /backend/api */
+const USE_MOCK = false;
 
-const API_BASE = 'backend/api';
+const API_BASE = '/backend/api';
 const USER_KEY = 'sportshub_user';
 const ADMIN_ROLES = ['admin', 'sports_admin', 'super_admin'];
 
@@ -23,11 +23,9 @@ const STATUS_CLASS = {
 const $ = (id) => document.getElementById(id);
 
 const els = {
-  // tabs
   tabs: document.querySelectorAll('.tab'),
   panelT: $('panel-tournaments'),
   panelR: $('panel-results'),
-  // tournaments
   grid: $('t-grid'),
   tState: $('t-state'),
   search: $('search'),
@@ -38,7 +36,6 @@ const els = {
   title: $('register-title'),
   team: $('team-name'),
   cancel: $('register-cancel'),
-  // results
   rTournament: $('r-tournament'),
   rSport: $('r-sport'),
   rState: $('r-state'),
@@ -55,7 +52,6 @@ const els = {
   fScoreA: $('f-score-a'),
   fScoreB: $('f-score-b'),
   fDate: $('f-date'),
-  // shared
   toast: $('toast'),
 };
 
@@ -63,10 +59,8 @@ let tournaments = [];
 let pendingId = null;
 let toastTimer = null;
 let resultsLoaded = false;
-let confirmKey = null; // e.g. "withdraw:3" or "delete:12" — inline two-step confirm, no popups
+let confirmKey = null;
 let confirmTimer = null;
-
-/* ---------- helpers ---------- */
 
 function getUser() {
   try {
@@ -77,7 +71,6 @@ function getUser() {
   }
 }
 
-/* Mock mode: set window.MOCK_ADMIN = true (e.g. in mock-api.js) to see the admin form */
 const isAdmin = USE_MOCK
   ? Boolean(window.MOCK_ADMIN)
   : ADMIN_ROLES.includes(String(getUser()?.role || '').toLowerCase());
@@ -112,7 +105,6 @@ function setBox(box, message, isError = false) {
   box.classList.toggle('error', isError);
 }
 
-/* First click arms the button, second click (within 4s) confirms. */
 function armConfirm(key, rerender) {
   confirmKey = key;
   clearTimeout(confirmTimer);
@@ -122,16 +114,27 @@ function armConfirm(key, rerender) {
   }, 4000);
   rerender();
 }
+
 function clearConfirm() {
   confirmKey = null;
   clearTimeout(confirmTimer);
 }
 
+function formatGatewayError(status, fallbackText = '') {
+  if (status === 403) {
+    return 'Service unavailable (HTTP 403): Edge/security policy blocked upstream API execution on this deployment.';
+  }
+  if (status === 404) {
+    return 'Service unavailable (HTTP 404): Upstream API route was not found on the current deployment.';
+  }
+  if (status === 502 || status === 504) {
+    return `Upstream gateway error (HTTP ${status}): Backend service timed out or is unreachable.`;
+  }
+  return fallbackText || `Unable to reach backend service (HTTP ${status}).`;
+}
+
 async function api(endpoint, options = {}) {
-  if (USE_MOCK) {
-    if (typeof window.mockApi !== 'function') {
-      throw new Error('mock-api.js is not loaded.');
-    }
+  if (USE_MOCK && typeof window.mockApi === 'function') {
     return window.mockApi(endpoint, options);
   }
 
@@ -140,27 +143,35 @@ async function api(endpoint, options = {}) {
   if (user?.id) headers['X-User-Id'] = String(user.id);
   if (options.body) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(`${API_BASE}/${endpoint}`, { credentials: 'include', ...options, headers });
-  const text = await res.text();
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/${endpoint}`, { credentials: 'include', ...options, headers });
+  } catch {
+    throw new Error('Network or CORS policy blocked the API request to the deployment origin.');
+  }
 
+  const text = await res.text();
   let data = {};
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    throw new Error(`Server returned invalid data (HTTP ${res.status}).`);
+    data = {};
   }
 
   if (res.status === 401) {
     window.location.assign('login.html');
-    throw new Error('Please sign in again.');
+    throw new Error('Session expired or unauthorized (HTTP 401). Please sign in again.');
   }
+
   if (!res.ok || data.success === false) {
-    throw new Error(data.error || data.message || `Request failed (${res.status})`);
+    const serverMsg =
+      (typeof data.error === 'string' && data.error.trim()) ||
+      (typeof data.message === 'string' && data.message.trim());
+    throw new Error(formatGatewayError(res.status, serverMsg));
   }
+
   return data;
 }
-
-/* ---------- tabs ---------- */
 
 function setTab(name, updateHash = true) {
   const showResults = name === 'results';
@@ -179,11 +190,9 @@ function setTab(name, updateHash = true) {
   if (!showResults) render();
 }
 
-function renderStandingsOnly() { /* results stay as last loaded */ }
+function renderStandingsOnly() {}
 
 els.tabs.forEach((tab) => tab.addEventListener('click', () => setTab(tab.dataset.tab)));
-
-/* ---------- tournaments ---------- */
 
 function matchesFilters(t) {
   const q = els.search.value.trim().toLowerCase();
@@ -347,8 +356,6 @@ els.form.addEventListener('submit', async (e) => {
 
 [els.search, els.status, els.sport].forEach((el) => el.addEventListener('input', render));
 
-/* ---------- results ---------- */
-
 let lastResults = [];
 
 function renderResults(results) {
@@ -479,8 +486,6 @@ els.rForm.addEventListener('submit', async (e) => {
     submitBtn.disabled = false;
   }
 });
-
-/* ---------- init ---------- */
 
 async function init() {
   if (isAdmin) {

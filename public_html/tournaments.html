@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tournaments & Results · NSBM SportsHub</title>
+  <title>Tournaments &amp; Results · NSBM SportsHub</title>
   <link rel="stylesheet" href="tournaments.css">
 </head>
 <body data-require="any">
@@ -44,7 +44,7 @@
         <a href="book-facilities.html">Book Facilities</a>
         <a href="clubs.html">Clubs</a>
         <a href="training-schedule.html">Training Schedule</a>
-        <a href="tournaments.html" class="active" aria-current="page">Tournaments & Results</a>
+        <a href="tournaments.html" class="active" aria-current="page">Tournaments &amp; Results</a>
         <a href="index.html" id="logout-btn">Sign out</a>
       </nav>
     </aside>
@@ -53,7 +53,7 @@
       <header class="topbar">
         <div>
           <span class="eyebrow">COMPETITION</span>
-          <h1>Tournaments & Results</h1>
+          <h1>Tournaments &amp; Results</h1>
           <p class="muted">Register for tournaments, then follow scores and standings.</p>
         </div>
       </header>
@@ -66,7 +66,6 @@
                   aria-selected="false" aria-controls="panel-results">Results</button>
         </div>
 
-        <!-- TOURNAMENTS -->
         <section id="panel-tournaments" role="tabpanel" aria-labelledby="tab-tournaments">
           <div class="toolbar">
             <input id="search" type="search" placeholder="Search tournaments..." aria-label="Search tournaments">
@@ -87,7 +86,6 @@
           <div id="t-grid" class="t-grid"></div>
         </section>
 
-        <!-- RESULTS -->
         <section id="panel-results" role="tabpanel" aria-labelledby="tab-results" hidden>
           <div class="toolbar">
             <select id="r-tournament" aria-label="Filter by tournament">
@@ -153,7 +151,6 @@
   <div id="toast" class="toast" role="status"></div>
 
   <script type="module" src="services/guard.js"></script>
-  <script src="mock-api.js"></script>
   <script src="tournaments.js"></script>
 </body>
 </html>
