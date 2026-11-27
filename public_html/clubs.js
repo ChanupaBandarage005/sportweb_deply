@@ -1,14 +1,23 @@
 (() => {
   const init = () => {
     const mainEl = document.getElementById("main");
-    const API_BASE = (mainEl?.dataset.apiBase || "/api").replace(/\/+$/, "");
+    const API_BASE = (mainEl?.dataset.apiBase || "api").replace(/\/+$/, "");
+    const USER_KEY = "sportshub_user";
 
     const ENDPOINTS = {
-      clubs: `${API_BASE}/clubs`,
-      clubDetail: (slug) => `${API_BASE}/clubs/${encodeURIComponent(slug)}`,
-      joinClub: `${API_BASE}/clubs/join`,
-      upcomingFixtures: `${API_BASE}/tournaments/upcoming`,
+      clubs: `${API_BASE}/clubs.php`,
+      joinClub: `${API_BASE}/clubs.php`,
+      upcomingFixtures: `${API_BASE}/tournaments.php`,
     };
+
+    function getUser() {
+      try {
+        const raw = sessionStorage.getItem(USER_KEY) || localStorage.getItem(USER_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
 
     function getHtmlClubImages() {
       const tpl = document.getElementById("club-images");
@@ -31,8 +40,17 @@
       return HTML_CLUB_IMAGES.get(slug) || apiImage || "";
     }
 
+    function slugify(name = "") {
+      return String(name)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    }
+
     const FALLBACK_CLUBS = [
       {
+        id: 1,
         slug: "nsbm-athletics-club",
         name: "Athletics Club",
         category: "field",
@@ -45,6 +63,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/nsbm-athletics-club/",
       },
       {
+        id: 2,
         slug: "nsbm-badminton-club",
         name: "Badminton Club",
         category: "indoor",
@@ -57,6 +76,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/nsbm-badminton-club/",
       },
       {
+        id: 3,
         slug: "chess-club",
         name: "Chess Club",
         category: "indoor",
@@ -69,6 +89,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/chess-club/",
       },
       {
+        id: 4,
         slug: "cricket-club",
         name: "Cricket Club",
         category: "field",
@@ -81,6 +102,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/cricket-club/",
       },
       {
+        id: 5,
         slug: "nsbm-martial-arts-club",
         name: "Martial Arts Club",
         category: "combat-aquatic",
@@ -93,6 +115,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/nsbm-martial-arts-club/",
       },
       {
+        id: 6,
         slug: "nsbm-netball-club",
         name: "Netball Club",
         category: "field",
@@ -105,6 +128,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/nsbm-netball-club/",
       },
       {
+        id: 7,
         slug: "nsbm-rugby-club",
         name: "Rugby Club",
         category: "field",
@@ -117,6 +141,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/nsbm-rugby-club/",
       },
       {
+        id: 8,
         slug: "swimming-club",
         name: "Swimming Club",
         category: "combat-aquatic",
@@ -129,6 +154,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/swimming-club/",
       },
       {
+        id: 9,
         slug: "table-tennis-club",
         name: "Table Tennis Club",
         category: "indoor",
@@ -141,6 +167,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/table-tennis-club/",
       },
       {
+        id: 10,
         slug: "tennis-club",
         name: "Tennis Club",
         category: "field",
@@ -153,6 +180,7 @@
         officialUrl: "https://www.nsbm.ac.lk/club/tennis-club/",
       },
       {
+        id: 11,
         slug: "nsbm-volleyball-club",
         name: "Volleyball Club",
         category: "field",
@@ -235,41 +263,64 @@
     }
 
     async function fetchJson(url, options = {}) {
+      const user = getUser();
+      const headers = {
+        Accept: "application/json",
+        ...(user?.id ? { "X-User-Id": String(user.id) } : {}),
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(options.headers || {}),
+      };
+
       const response = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-          ...(options.body ? { "Content-Type": "application/json" } : {}),
-          ...(options.headers || {}),
-        },
+        credentials: "include",
         ...options,
+        headers,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} from ${url}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || data.message || `HTTP ${response.status} from ${url}`);
       }
-      return response.json();
+      return data;
+    }
+
+    function mapCategory(sport = "") {
+      const s = String(sport).toLowerCase();
+      if (s.includes("swim") || s.includes("martial") || s.includes("aquatic") || s.includes("combat")) {
+        return "combat-aquatic";
+      }
+      if (s.includes("badminton") || s.includes("chess") || s.includes("table tennis") || s.includes("indoor")) {
+        return "indoor";
+      }
+      return "field";
     }
 
     function normalizeClubs(payload) {
-      const rawList = Array.isArray(payload) ? payload : payload?.clubs;
+      const rawList = Array.isArray(payload) ? payload : payload?.data ?? payload?.clubs;
       if (!Array.isArray(rawList) || rawList.length === 0) {
         throw new Error("Invalid clubs payload");
       }
 
       return rawList.map((club, index) => {
-        const slug = club.slug || `club-${index + 1}`;
+        const name = club.name || club.club_name || "Sports Club";
+        const slug = club.slug || slugify(name) || `club-${index + 1}`;
+        const fallback = FALLBACK_CLUBS.find((f) => f.slug === slug);
+        const sport = club.sport || fallback?.categoryLabel || "Sports Club";
+
         return {
+          id: Number(club.id ?? fallback?.id ?? index + 1),
           slug,
-          name: club.name || club.club_name || "Sports Club",
-          category: club.category || "field",
-          categoryLabel: club.category_label || club.categoryLabel || "Sports Club",
-          venue: club.venue || club.location || "NSBM Sports Facilities",
-          schedule: club.schedule || club.training_schedule || "Weekly Campus Sessions",
-          membersCount: club.members_count ?? club.membersCount ?? "Active",
-          lead: club.lead || club.captain || "NSBM Sports Council",
-          summary: club.summary || club.description || "Official NSBM student sports club.",
+          name,
+          category: club.category || mapCategory(sport),
+          categoryLabel: club.category_label || club.categoryLabel || sport,
+          venue: club.venue || club.location || fallback?.venue || "NSBM Sports Facilities",
+          schedule: club.schedule || club.training_schedule || fallback?.schedule || "Weekly Campus Sessions",
+          membersCount: club.member_count ?? club.members_count ?? club.membersCount ?? fallback?.membersCount ?? "Active",
+          lead: club.president || club.lead || club.captain || fallback?.lead || "NSBM Sports Council",
+          summary: club.description || club.summary || fallback?.summary || "Official NSBM student sports club.",
           image: resolveClubImage(slug, club.image || club.image_url),
-          officialUrl: club.official_url || club.officialUrl || "https://www.nsbm.ac.lk/sports-clubs/",
+          officialUrl: club.official_url || club.officialUrl || fallback?.officialUrl || "https://www.nsbm.ac.lk/sports-clubs/",
+          myStatus: club.my_status || null,
         };
       });
     }
@@ -279,7 +330,7 @@
       try {
         const data = await fetchJson(ENDPOINTS.clubs);
         state.clubs = normalizeClubs(data);
-        setSyncStatus("Live · /api/clubs", false);
+        setSyncStatus("Live · clubs.php", false);
       } catch (_err) {
         state.clubs = FALLBACK_CLUBS.map((club) => ({
           ...club,
@@ -304,7 +355,7 @@
       joinClubSelect.innerHTML = state.clubs
         .map(
           (club) =>
-            `<option value="${escapeHtml(club.slug)}">${escapeHtml(club.name)}</option>`
+            `<option value="${escapeHtml(String(club.id))}">${escapeHtml(club.name)}</option>`
         )
         .join("");
     }
@@ -362,16 +413,16 @@
 
       try {
         const data = await fetchJson(ENDPOINTS.upcomingFixtures);
-        const raw = Array.isArray(data) ? data : data?.fixtures;
+        const raw = Array.isArray(data) ? data : data?.data ?? data?.fixtures;
         if (!Array.isArray(raw) || raw.length === 0) {
           throw new Error("No fixtures returned");
         }
         renderFixtures(
-          raw.map((item, i) => ({
+          raw.slice(0, 5).map((item, i) => ({
             id: item.id || i + 1,
-            dateLabel: item.date_label || item.dateLabel || item.event_date || "Upcoming",
+            dateLabel: item.date_label || item.dateLabel || item.start_date || item.event_date || "Upcoming",
             title: item.title || item.name || "SportsHub Event",
-            venue: item.venue || item.location || "NSBM Campus",
+            venue: item.venue || item.location || item.sport || "NSBM Campus",
           }))
         );
       } catch (_err) {
@@ -422,7 +473,7 @@
         if (officialLink) officialLink.href = club.officialUrl;
 
         if (joinClubSelect) {
-          joinClubSelect.value = club.slug;
+          joinClubSelect.value = String(club.id);
         }
       }
 
@@ -440,31 +491,6 @@
       closeModalBtn?.focus();
     }
 
-    async function handleClubCardClick(slug, triggerEl) {
-      openModal({ mode: "detail", clubSlug: slug, triggerEl });
-
-      try {
-        const detail = await fetchJson(ENDPOINTS.clubDetail(slug));
-        const payload = detail?.club || detail;
-        if (payload && state.activeClubSlug === slug) {
-          if (payload.summary) setText("modal-club-desc", payload.summary);
-          if (payload.venue) setText("modal-club-venue", payload.venue);
-          if (payload.schedule || payload.training_schedule) {
-            setText("modal-club-schedule", payload.schedule || payload.training_schedule);
-          }
-          const members = payload.members_count ?? payload.membersCount;
-          if (members !== undefined && members !== null) {
-            setText("modal-club-members", String(members));
-          }
-          if (payload.lead || payload.captain) {
-            setText("modal-club-lead", payload.lead || payload.captain);
-          }
-        }
-      } catch (_err) {
-        // Keep rendered details on error
-      }
-    }
-
     function closeModal() {
       if (!modalEl) return;
       modalEl.hidden = true;
@@ -479,18 +505,16 @@
       if (!joinFormEl || !joinFeedbackEl) return;
 
       const formData = new FormData(joinFormEl);
-      const body = {
-        club_slug: String(formData.get("club_slug") || ""),
-        student_name: String(formData.get("student_name") || "").trim(),
-        student_id: String(formData.get("student_id") || "").trim(),
-        faculty: String(formData.get("faculty") || ""),
-        email: String(formData.get("email") || "").trim(),
-        notes: String(formData.get("notes") || "").trim(),
-      };
+      const clubId = Number(formData.get("club_slug") || 0);
+      const studentName = String(formData.get("student_name") || "").trim();
+      const studentId = String(formData.get("student_id") || "").trim();
+      const faculty = String(formData.get("faculty") || "");
+      const email = String(formData.get("email") || "").trim();
+      const notes = String(formData.get("notes") || "").trim();
 
-      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email);
-      if (!body.student_name || !body.student_id || !emailValid) {
-        joinFeedbackEl.textContent = "Please enter a valid name, student ID, and email address.";
+      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (!clubId || !studentName || !studentId || !emailValid) {
+        joinFeedbackEl.textContent = "Please select a club and enter a valid name, student ID, and email address.";
         joinFeedbackEl.style.color = "#b91c1c";
         return;
       }
@@ -505,19 +529,28 @@
       try {
         const res = await fetchJson(ENDPOINTS.joinClub, {
           method: "POST",
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            club_id: clubId,
+            student_name: studentName,
+            student_id: studentId,
+            faculty,
+            email,
+            notes,
+          }),
         });
 
+        const clubName = res?.data?.club_name || state.clubs.find((c) => c.id === clubId)?.name || "club";
         joinFeedbackEl.textContent =
-          res?.message || `Application submitted for ${body.club_slug}. Check your email for trial details.`;
+          res?.message || `Membership request submitted for ${clubName}.`;
         joinFeedbackEl.style.color = "#136747";
         joinFormEl.reset();
-        if (body.club_slug && joinClubSelect) {
-          joinClubSelect.value = body.club_slug;
+        if (joinClubSelect) {
+          joinClubSelect.value = String(clubId);
         }
-      } catch (_err) {
+        loadClubs();
+      } catch (err) {
         joinFeedbackEl.textContent =
-          "Could not reach /api/clubs/join right now. Please try again later.";
+          err?.message || "Could not submit join request right now. Please try again later.";
         joinFeedbackEl.style.color = "#b91c1c";
       } finally {
         if (submitBtn) {
@@ -530,7 +563,7 @@
     gridEl?.addEventListener("click", (event) => {
       const trigger = event.target.closest("[data-club-slug]");
       if (!trigger) return;
-      handleClubCardClick(trigger.dataset.clubSlug, trigger);
+      openModal({ mode: "detail", clubSlug: trigger.dataset.clubSlug, triggerEl: trigger });
     });
 
     searchInput?.addEventListener("input", (event) => {
